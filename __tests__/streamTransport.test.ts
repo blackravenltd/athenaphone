@@ -8,7 +8,11 @@
 import { Buffer } from 'buffer';
 
 import { StreamTransport } from '../src/sip/transports/StreamTransport';
-import TcpSocket from 'react-native-tcp-socket';
+import {
+  resetSocketFactories,
+  setSocketFactories,
+  type StreamSocket,
+} from '../src/sip/transports/sockets';
 
 /**
  * The framing tests. A stream transport has no message boundaries, so these
@@ -37,12 +41,19 @@ function mockSocket() {
 
 function connected() {
   const { socket, handlers } = mockSocket();
-  (TcpSocket.createConnection as jest.Mock).mockImplementation(
-    (_options: unknown, callback: () => void) => {
-      callback();
-      return socket;
+  setSocketFactories({
+    createDatagram: () => {
+      throw new Error('not used in these tests');
     },
-  );
+    connectStream: (_options, onReady) => {
+      onReady();
+      return socket as unknown as StreamSocket;
+    },
+    connectTls: (_options, onReady) => {
+      onReady();
+      return socket as unknown as StreamSocket;
+    },
+  });
 
   const transport = new StreamTransport('pbx.example.com', 5060, false);
   const received: string[] = [];
@@ -69,6 +80,7 @@ const message = (body = '') =>
 
 describe('StreamTransport framing', () => {
   beforeEach(() => jest.clearAllMocks());
+  afterEach(() => resetSocketFactories());
 
   it('surfaces a whole message that arrives in one read', () => {
     const { feed, received } = connected();
@@ -155,6 +167,7 @@ describe('StreamTransport framing', () => {
 
 describe('StreamTransport lifecycle', () => {
   beforeEach(() => jest.clearAllMocks());
+  afterEach(() => resetSocketFactories());
 
   it('reports a SIP URI and Via transport JsSIP can use', () => {
     const tcp = new StreamTransport('pbx.example.com', 5060, false);

@@ -130,6 +130,17 @@ docker compose up --build
 Register as `1001` / `athenaphone`. See
 [`test/asterisk/README.md`](test/asterisk/README.md) for the extension table.
 
+With the fixture up, the integration harness runs the real SIP stack against
+it from Node — no device, no emulator:
+
+```bash
+npm run test:integration
+```
+
+Only the sockets are swapped, for Node's `dgram`, `net` and `tls`; everything
+above them is the code that ships. See
+[`test/integration/README.md`](test/integration/README.md).
+
 ### Patches
 
 `npm run postinstall` applies [`patches/`](patches) via `patch-package`. The

@@ -20,7 +20,10 @@ to end**. Everything else is speculation until this is done.
       DTLS-SRTP, 1604 packets sent and 1613 received in 32 seconds with
       negligible loss. Call timer, system call UI, hang-up and call history
       all correct.
-- [ ] **Register on TLS and WSS** as well. Only UDP and TCP are proven.
+- [x] **Register on every transport.** UDP, TCP, TLS and WS all verified by
+      the harness. WSS remains uncovered there — JsSIP's WebSocket transport
+      cannot be given a CA — so it still needs a manual check, or
+      `NODE_EXTRA_CA_CERTS`.
 - [ ] **Assert the Milliwatt tone**, rather than just observing that RTP
       flows. Needs RTP capture and an FFT, which belongs in the automated
       harness rather than a manual run.
@@ -75,13 +78,17 @@ to end**. Everything else is speculation until this is done.
 
 The fixture makes manual verification possible; these make it repeatable.
 
-- [ ] **Make the transports take an injectable socket factory.** Both already
-      define their socket surface as an internal interface, so this is small —
-      and it lets the whole SIP layer run under Node with `dgram`/`net`, which
-      is what makes everything below possible without a device.
-- [ ] **Signalling tests in Node** against the fixture: REGISTER with digest
-      auth, re-REGISTER on expiry, the INVITE/180/200/ACK/BYE sequence, CANCEL
-      races, and the 486/503/603 outcomes that map to `CallEndReason`.
+- [x] **Make the transports take an injectable socket factory.** Done:
+      `src/sip/transports/sockets.ts`. The app installs the React Native
+      sockets, the harness installs Node's.
+- [x] **Registration tests in Node** against the fixture: all four transports
+      with digest auth, bad password, unreachable server, clean unregister.
+      Seven tests, seconds to run.
+- [ ] **Call signalling tests**: the INVITE/180/200/ACK/BYE sequence, CANCEL
+      races, and the 486/503/603 outcomes that map to `CallEndReason`. Needs a
+      WebRTC stack under Node for the SDP — see media assertions below.
+- [ ] **Re-REGISTER on expiry.** The fixture's AOR allows a 60-second expiry,
+      so this is observable without a long wait.
 - [ ] **Media assertions**, using `werift` for WebRTC under Node so RTP
       actually flows, and an FFT against extension `101`.
 - [ ] **CI.** Signalling tests need no containers and can run on every commit;
