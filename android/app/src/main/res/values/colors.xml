@@ -1,0 +1,8 @@
+<resources>
+    <!-- Mirrors the bg token in src/theme: the app is dark-only, so the
+         window background must match or launches flash white. -->
+    <color name="athena_bg">#0c0e10</color>
+
+    <!-- Adaptive icon background layer. Same surface as the app itself. -->
+    <color name="ic_launcher_background">#0c0e10</color>
+</resources>

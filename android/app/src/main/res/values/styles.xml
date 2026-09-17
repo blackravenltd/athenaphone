@@ -1,0 +1,11 @@
+<resources>
+
+    <!-- Base application theme. Forced dark: AthenaPhone has no light mode. -->
+    <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <item name="android:windowBackground">@color/athena_bg</item>
+        <item name="android:navigationBarColor">@color/athena_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+
+</resources>
