@@ -112,6 +112,26 @@ npm test
 npm run check       # all three, as CI runs them
 ```
 
+### Testing against a real server
+
+[`test/asterisk`](test/asterisk) is a disposable Asterisk fixture serving all
+four transports at once, with a dialplan of single-purpose test extensions —
+echo, a 1004 Hz reference tone, DTMF capture and readback, busy, no-answer,
+hold and a transfer target — plus AMI so tests can assert on what the server
+saw rather than only on what the app displayed.
+
+```bash
+cd test/asterisk
+cp .env.example .env          # the address your device reaches this host on
+./scripts/generate-certs.sh <that address>
+docker compose up --build
+```
+
+Register as `1001` / `athenaphone`. See
+[`test/asterisk/README.md`](test/asterisk/README.md) for the extension table.
+
+### Patches
+
 `npm run postinstall` applies [`patches/`](patches) via `patch-package`. The
 one patch there de-annotates two duplicate `@ReactMethod` overloads in
 `react-native-callkeep`, which RN 0.87's TurboModule interop rejects — without

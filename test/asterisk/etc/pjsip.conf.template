@@ -1,0 +1,158 @@
+;
+; AthenaPhone - Open Source SIP Softphone
+;
+; Copyright (C) 2026 Tom Cully <mail@tomcully.com>
+; Licensed under the GNU GPLv3 - see <https://www.gnu.org/licenses/gpl-3.0.html>
+;
+; Test server endpoint and transport configuration.
+;
+; All four transports are served at once, so one fixture exercises every
+; transport AthenaPhone supports.
+
+; ----------------------------------------------------------------- transports
+
+[transport-udp]
+type = transport
+protocol = udp
+bind = 0.0.0.0:5060
+; Rewrite the address Asterisk advertises. Without this the container puts its
+; bridge address in SDP and Contact, and nothing outside Docker can reply.
+external_media_address = ${ASTERISK_EXTERNAL_IP}
+external_signaling_address = ${ASTERISK_EXTERNAL_IP}
+local_net = 172.16.0.0/12
+local_net = 192.168.0.0/16
+local_net = 10.0.0.0/8
+
+[transport-tcp]
+type = transport
+protocol = tcp
+bind = 0.0.0.0:5060
+external_media_address = ${ASTERISK_EXTERNAL_IP}
+external_signaling_address = ${ASTERISK_EXTERNAL_IP}
+local_net = 172.16.0.0/12
+local_net = 192.168.0.0/16
+local_net = 10.0.0.0/8
+
+[transport-tls]
+type = transport
+protocol = tls
+bind = 0.0.0.0:5061
+cert_file = /etc/asterisk/keys/asterisk.crt
+priv_key_file = /etc/asterisk/keys/asterisk.key
+method = tlsv1_2
+external_media_address = ${ASTERISK_EXTERNAL_IP}
+external_signaling_address = ${ASTERISK_EXTERNAL_IP}
+local_net = 172.16.0.0/12
+local_net = 192.168.0.0/16
+local_net = 10.0.0.0/8
+
+; WS and WSS ride on Asterisk's HTTP server -- the ports are set in http.conf
+; (8088 and 8089), not here.
+[transport-ws]
+type = transport
+protocol = ws
+bind = 0.0.0.0
+
+[transport-wss]
+type = transport
+protocol = wss
+bind = 0.0.0.0
+
+; ------------------------------------------------------------------ templates
+
+; AthenaPhone's media is always WebRTC, whatever the SIP transport:
+; react-native-webrtc offers DTLS-SRTP with ICE and rtcp-mux even over plain
+; UDP signalling. `webrtc = yes` sets use_avpf, media_encryption = dtls,
+; ice_support and rtcp_mux together, which is what makes media work here.
+;
+; This is the single most common reason a WebRTC-based softphone registers
+; against a conventional PBX and then gets no audio: the server offers plain
+; RTP/AVP and the phone will not accept it.
+;
+; Note the "(!)" and "[name](template)" syntax -- that is how Asterisk does
+; template inheritance. There is no "templates =" option.
+[endpoint-defaults](!)
+type = endpoint
+context = athenaphone-test
+disallow = all
+allow = opus
+allow = ulaw
+allow = alaw
+allow = vp8
+allow = h264
+webrtc = yes
+direct_media = no
+force_rport = yes
+dtmf_mode = rfc4733
+allow_transfer = yes
+trust_id_outbound = yes
+
+[auth-defaults](!)
+type = auth
+auth_type = userpass
+
+[aor-defaults](!)
+type = aor
+max_contacts = 5
+remove_existing = yes
+; A short expiry keeps re-REGISTER behaviour testable without a long wait.
+minimum_expiration = 30
+default_expiration = 120
+qualify_frequency = 30
+
+; --------------------------------------------------------------- test account
+; The account AthenaPhone registers as. Works on every transport above.
+;
+; Endpoint, auth and aor get distinct section names. Asterisk's own examples
+; reuse one name for all three, which works but makes a duplicate-category
+; mistake impossible to spot.
+
+[1001](endpoint-defaults)
+auth = auth1001
+aors = aor1001
+callerid = AthenaPhone Test <1001>
+
+[auth1001](auth-defaults)
+username = 1001
+password = athenaphone
+
+[aor1001](aor-defaults)
+
+; ------------------------------------------------- second account, for calls
+; Lets a test call between two registrations, and gives transfer somewhere to
+; land.
+
+[1002](endpoint-defaults)
+auth = auth1002
+aors = aor1002
+callerid = AthenaPhone Second <1002>
+
+[auth1002](auth-defaults)
+username = 1002
+password = athenaphone
+
+[aor1002](aor-defaults)
+
+; -------------------------------------------------- plain-RTP control account
+; Deliberately NOT webrtc. Use this to confirm AthenaPhone's behaviour against
+; a server offering plain RTP/AVP -- the interop case above. Expect media to
+; fail until a downgrade path exists.
+
+[1003]
+type = endpoint
+context = athenaphone-test
+disallow = all
+allow = ulaw
+allow = alaw
+auth = auth1003
+aors = aor1003
+direct_media = no
+force_rport = yes
+dtmf_mode = rfc4733
+callerid = Plain RTP Control <1003>
+
+[auth1003](auth-defaults)
+username = 1003
+password = athenaphone
+
+[aor1003](aor-defaults)
