@@ -3,6 +3,13 @@
  * app touches at import time is replaced with a stub here.
  */
 
+//
+// AthenaPhone - Open Source SIP Softphone
+//
+// Copyright (C) 2026 Tom Cully <mail@tomcully.com>
+// Licensed under the GNU GPLv3 - see <https://www.gnu.org/licenses/gpl-3.0.html>
+//
+
 require('react-native-gesture-handler/jestSetup');
 
 // The library's own jest mock re-exports through @jest/globals and comes

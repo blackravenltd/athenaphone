@@ -6,6 +6,13 @@
  * browser ones, which differ in the parts we use.
  */
 
+//
+// AthenaPhone - Open Source SIP Softphone
+//
+// Copyright (C) 2026 Tom Cully <mail@tomcully.com>
+// Licensed under the GNU GPLv3 - see <https://www.gnu.org/licenses/gpl-3.0.html>
+//
+
 declare const crypto: {
   getRandomValues<T extends ArrayBufferView>(array: T): T;
 };
