@@ -4,6 +4,13 @@
  * React Native's `EventEmitter` is untyped and Node's is not available, so
  * this gives the SIP layer compile-time checked events without a dependency.
  */
+
+//
+// AthenaPhone - Open Source SIP Softphone
+//
+// Copyright (C) 2026 Tom Cully <mail@tomcully.com>
+// Licensed under the GNU GPLv3 - see <https://www.gnu.org/licenses/gpl-3.0.html>
+//
 export type EventMap = object;
 
 type Listener<T> = (payload: T) => void;

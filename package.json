@@ -68,7 +68,7 @@
     "node": ">= 22.11.0"
   },
   "description": "An open source, fully featured SIP softphone with video calling, built with React Native.",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "keywords": [
     "sip",
     "voip",
@@ -77,5 +77,10 @@
     "react-native",
     "video-calling",
     "jssip"
-  ]
+  ],
+  "author": "Tom Cully <mail@tomcully.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/blackravenltd/athenaphone.git"
+  }
 }
