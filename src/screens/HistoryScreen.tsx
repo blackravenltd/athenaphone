@@ -18,6 +18,7 @@ import { TrashIcon } from '../components/Icons';
 import { Row } from '../components/Row';
 import { Screen } from '../components/Screen';
 import { SectionLabel } from '../components/SectionLabel';
+import { useCriticalAction } from '../hooks/useCriticalAction';
 import { CallController } from '../services/CallController';
 import { Dialog } from '../store/dialogStore';
 import { useHistoryStore } from '../store/historyStore';
@@ -84,14 +85,16 @@ export function HistoryScreen() {
     [entries],
   );
 
-  const redial = useCallback((entry: CallHistoryEntry) => {
-    CallController.placeCall(entry.remoteUri, entry.hasVideo).catch(error =>
-      Dialog.alert(
+  const { run: redial } = useCriticalAction(async (entry: CallHistoryEntry) => {
+    try {
+      await CallController.placeCall(entry.remoteUri, entry.hasVideo);
+    } catch (error) {
+      void Dialog.alert(
         'Could not place call',
         error instanceof Error ? error.message : 'Unknown error',
-      ),
-    );
-  }, []);
+      );
+    }
+  });
 
   const confirmDelete = useCallback(
     (entry: CallHistoryEntry) => {

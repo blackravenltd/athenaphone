@@ -13,6 +13,7 @@ import { Dialpad } from '../components/Dialpad';
 import { BackspaceIcon, PhoneIcon, VideoIcon } from '../components/Icons';
 import { RegistrationBanner } from '../components/RegistrationBanner';
 import { Screen } from '../components/Screen';
+import { useCriticalAction } from '../hooks/useCriticalAction';
 import { CallController } from '../services/CallController';
 import { Dialog } from '../store/dialogStore';
 import { useAccountStore } from '../store/accountStore';
@@ -29,7 +30,7 @@ export function DialerScreen() {
   const account = useAccountStore(state => state.activeAccount());
   const registration = useAccountStore(state => state.registration);
 
-  const canDial = registration.state === 'registered' && target.length > 0;
+  const registered = registration.state === 'registered';
 
   const append = useCallback((digit: string) => {
     setTarget(current => current + digit);
@@ -46,11 +47,11 @@ export function DialerScreen() {
     [account],
   );
 
-  const dial = useCallback(
+  // Placing a call is the most consequential thing this screen does, so it
+  // goes through the shared guard rather than relying on the button's own
+  // disabled state.
+  const { run: dial, busy: placing } = useCriticalAction(
     async (video: boolean) => {
-      if (!canDial) {
-        return;
-      }
       try {
         await CallController.placeCall(target, video);
         setTarget('');
@@ -61,8 +62,9 @@ export function DialerScreen() {
         );
       }
     },
-    [canDial, target],
   );
+
+  const canDial = registered && target.length > 0 && !placing;
 
   return (
     <Screen title="AthenaPhone" below={<RegistrationBanner />}>

@@ -29,6 +29,7 @@ import { Watermark } from '../components/Logo';
 import { PromptModal } from '../components/PromptModal';
 import { StatusDot } from '../components/StatusDot';
 import { useCallTimer } from '../hooks/useCallTimer';
+import { useCriticalAction } from '../hooks/useCriticalAction';
 import { CallController } from '../services/CallController';
 import { Dialog } from '../store/dialogStore';
 import { selectFocusedCall, useCallStore } from '../store/callStore';
@@ -92,27 +93,54 @@ export function CallScreen() {
     [call],
   );
 
-  const transfer = useCallback(
-    (target: string) => {
-      setShowTransfer(false);
-      if (call) {
-        CallController.blindTransfer(call.id, target);
+
+
+  const callId = call?.id;
+
+  // Everything that starts, answers, ends or redirects a call is guarded:
+  // these are the controls people press twice when nothing appears to happen.
+  const { run: answer, busy: answering } = useCriticalAction(
+    async (withVideo: boolean) => {
+      if (callId) {
+        await CallController.answerCall(callId, withVideo);
       }
     },
-    [call],
   );
 
-  const upgradeToVideo = useCallback(() => {
-    if (!call) {
-      return;
+  const { run: decline, busy: declining } = useCriticalAction(() => {
+    if (callId) {
+      CallController.rejectCall(callId);
     }
-    CallController.upgradeToVideo(call.id).catch(error =>
-      Dialog.alert(
-        'Could not start video',
-        error instanceof Error ? error.message : 'Unknown error',
-      ),
-    );
-  }, [call]);
+  });
+
+  const { run: hangup, busy: hangingUp } = useCriticalAction(() => {
+    if (callId) {
+      CallController.hangup(callId);
+    }
+  });
+
+  const { run: upgradeToVideo, busy: upgradingVideo } = useCriticalAction(
+    async () => {
+      if (!callId) {
+        return;
+      }
+      try {
+        await CallController.upgradeToVideo(callId);
+      } catch (error) {
+        void Dialog.alert(
+          'Could not start video',
+          error instanceof Error ? error.message : 'Unknown error',
+        );
+      }
+    },
+  );
+
+  const { run: doTransfer } = useCriticalAction((target: string) => {
+    setShowTransfer(false);
+    if (callId) {
+      CallController.blindTransfer(callId, target);
+    }
+  });
 
   if (!call) {
     return null;
@@ -200,7 +228,8 @@ export function CallScreen() {
                 Icon={PhoneDownIcon}
                 tone="reject"
                 size={70}
-                onPress={() => CallController.rejectCall(call.id)}
+                disabled={declining}
+                onPress={decline}
               />
               {call.hasVideo ? (
                 <ActionButton
@@ -208,7 +237,8 @@ export function CallScreen() {
                   Icon={PhoneIcon}
                   tone="accept"
                   size={70}
-                  onPress={() => CallController.answerCall(call.id, false)}
+                  disabled={answering}
+                  onPress={() => answer(false)}
                 />
               ) : null}
               <ActionButton
@@ -271,7 +301,7 @@ export function CallScreen() {
                   <ActionButton
                     label="Video"
                     Icon={VideoIcon}
-                    disabled={!isConnected}
+                    disabled={!isConnected || upgradingVideo}
                     onPress={upgradeToVideo}
                   />
                 )}
@@ -286,7 +316,7 @@ export function CallScreen() {
             placeholder="Number or SIP address"
             confirmLabel="Transfer"
             keyboardType="phone-pad"
-            onConfirm={transfer}
+            onConfirm={doTransfer}
             onCancel={() => setShowTransfer(false)}
           />
 
@@ -297,7 +327,8 @@ export function CallScreen() {
                 Icon={PhoneDownIcon}
                 tone="reject"
                 size={70}
-                onPress={() => CallController.hangup(call.id)}
+                disabled={hangingUp}
+                onPress={hangup}
               />
             </View>
           )}

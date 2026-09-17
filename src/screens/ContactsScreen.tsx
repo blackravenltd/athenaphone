@@ -19,6 +19,7 @@ import { PlusIcon } from '../components/Icons';
 import { PromptModal } from '../components/PromptModal';
 import { Row } from '../components/Row';
 import { Screen } from '../components/Screen';
+import { useCriticalAction } from '../hooks/useCriticalAction';
 import { CallController } from '../services/CallController';
 import { Dialog } from '../store/dialogStore';
 import { useContactsStore } from '../store/contactsStore';
@@ -61,18 +62,20 @@ export function ContactsScreen() {
     ];
   }, [contacts, query]);
 
-  const call = useCallback((contact: Contact) => {
+  const { run: call } = useCriticalAction(async (contact: Contact) => {
     const target = contact.numbers[0]?.value;
     if (!target) {
       return;
     }
-    CallController.placeCall(target).catch(error =>
-      Dialog.alert(
+    try {
+      await CallController.placeCall(target);
+    } catch (error) {
+      void Dialog.alert(
         'Could not place call',
         error instanceof Error ? error.message : 'Unknown error',
-      ),
-    );
-  }, []);
+      );
+    }
+  });
 
   const contactActions = useCallback(
     (contact: Contact) => {
