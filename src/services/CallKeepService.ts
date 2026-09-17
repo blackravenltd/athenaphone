@@ -68,6 +68,19 @@ const OPTIONS: IOptions = {
  */
 class CallKeepServiceImpl extends TypedEmitter<CallKeepEvents> {
   private ready = false;
+  /**
+   * Outbound calls we have just reported, by call id and by dialled handle.
+   *
+   * Telecom echoes `RNCallKeep.startCall()` straight back as
+   * `didReceiveStartCallAction`. That event is meant for calls dialled from
+   * outside the app -- the system dialer, Contacts, a tel: link -- so acting
+   * on it is correct in general, but acting on our own echo places the call a
+   * second time. See `bindEvents`.
+   */
+  private readonly selfInitiated = new Map<string, number>();
+
+  /** How long an echo can plausibly take to come back. */
+  private static readonly ECHO_WINDOW_MS = 5000;
 
   async setup(): Promise<boolean> {
     if (this.ready) {
@@ -82,6 +95,28 @@ class CallKeepServiceImpl extends TypedEmitter<CallKeepEvents> {
       RNCallKeep.canMakeMultipleCalls(true);
       this.bindEvents();
       this.ready = true;
+
+      // Clears anything left in CallKeep's own connection map -- a JS reload
+      // with a call up, or a second init.
+      //
+      // It does NOT clear an orphan from a previous *process*: endAllCalls
+      // iterates VoiceConnectionService.currentConnections, which is static
+      // and therefore empty in a fresh process. A connection left behind by a
+      // crash lives on in the system telecom service, where nothing this app
+      // can call will reach it. The symptom is Android asking "placing this
+      // call will end your AthenaPhone call" before every outbound call, with
+      // no call anywhere in the app to end.
+      //
+      // Recovery is to unregister the phone account and restart:
+      //
+      //   adb shell telecom unregister-phone-account \
+      //     com.athenaphone/io.wazo.callkeep.VoiceConnectionService AthenaPhone 0
+      //
+      // The real defence is not creating orphans: never let an exception
+      // escape into a ConnectionService callback, and never report a call to
+      // telecom that we will not also report the end of.
+      RNCallKeep.endAllCalls();
+
       return true;
     } catch (error) {
       // A device without a telecom stack, or a user who declined the phone
@@ -125,13 +160,42 @@ class CallKeepServiceImpl extends TypedEmitter<CallKeepEvents> {
     if (!this.ready) {
       return;
     }
+    const handle = displayTarget(call.remoteUri);
+    // Record before telling telecom, because the echo can arrive immediately.
+    this.rememberSelfInitiated(call.id);
+    this.rememberSelfInitiated(handle);
+
     RNCallKeep.startCall(
       call.id,
-      displayTarget(call.remoteUri),
-      call.remoteDisplayName ?? displayTarget(call.remoteUri),
+      handle,
+      call.remoteDisplayName ?? handle,
       'number',
       call.hasVideo,
     );
+  }
+
+  /** Note that we started this call, so the telecom echo can be dropped. */
+  private rememberSelfInitiated(key: string): void {
+    const now = Date.now();
+    this.selfInitiated.set(key, now);
+
+    for (const [existing, at] of this.selfInitiated) {
+      if (now - at > CallKeepServiceImpl.ECHO_WINDOW_MS) {
+        this.selfInitiated.delete(existing);
+      }
+    }
+  }
+
+  /** True when this start action is telecom repeating our own request back. */
+  private isSelfInitiated(...keys: (string | undefined)[]): boolean {
+    const now = Date.now();
+    return keys.some(key => {
+      if (!key) {
+        return false;
+      }
+      const at = this.selfInitiated.get(key);
+      return at !== undefined && now - at <= CallKeepServiceImpl.ECHO_WINDOW_MS;
+    });
   }
 
   /** Outbound call reached 180 Ringing. */
@@ -246,12 +310,20 @@ class CallKeepServiceImpl extends TypedEmitter<CallKeepEvents> {
       this.emit('audioSessionDeactivated', undefined);
     });
 
+    // Calls dialled from outside the app -- the system dialer, Contacts, a
+    // tel: link -- arrive here, and we place them. Our own outbound calls
+    // arrive here too, because telecom echoes RNCallKeep.startCall() back,
+    // and placing those again is how one tap became two calls a second apart.
     RNCallKeep.addEventListener(
       'didReceiveStartCallAction',
       ({ handle, callUUID }) => {
-        if (handle) {
-          this.emit('startCall', { handle, callId: callUUID, video: false });
+        if (!handle) {
+          return;
         }
+        if (this.isSelfInitiated(callUUID, handle)) {
+          return;
+        }
+        this.emit('startCall', { handle, callId: callUUID, video: false });
       },
     );
   }

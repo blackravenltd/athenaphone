@@ -11,23 +11,93 @@ shipped.
 The code compiles, lints and passes its tests, but **no call has completed end
 to end**. Everything else is speculation until this is done.
 
-- [ ] **Register against a real server.** The account on the test device still
-      needs moving from WSS to UDP. 2talk answers SIP `OPTIONS` with `200 OK`
-      on UDP 5060, so it is reachable.
-- [ ] **Place and answer an audio call.** Verify two-way audio, the call
-      timer, and that the audio session is released on hangup.
+- [x] **Bring up the Asterisk fixture.** Verified 2026-09-17: all four
+      transports answer SIP, TLS verifies, both WebSocket listeners complete
+      the handshake, and AMI accepts a login.
+- [x] **Register against it** from the app. Verified 2026-09-17 on UDP and
+      TCP, with digest auth.
+- [x] **Place and answer an audio call.** Verified: extension 101, Opus over
+      DTLS-SRTP, 1604 packets sent and 1613 received in 32 seconds with
+      negligible loss. Call timer, system call UI, hang-up and call history
+      all correct.
+- [x] **Register on every transport.** UDP, TCP, TLS and WS all verified by
+      the harness. WSS remains uncovered there — JsSIP's WebSocket transport
+      cannot be given a CA — so it still needs a manual check, or
+      `NODE_EXTRA_CA_CERTS`.
+- [ ] **Assert the Milliwatt tone**, rather than just observing that RTP
+      flows. Needs RTP capture and an FFT, which belongs in the automated
+      harness rather than a manual run.
+- [ ] **Register against a commodity provider** too, so the fixture is not the
+      only thing the app has ever spoken to. 2talk answers SIP `OPTIONS` with
+      `200 OK` on UDP 5060, so it is reachable; the device account needs
+      moving from WSS to UDP.
 - [ ] **Place and answer a video call.** Verify the remote view, the local
       picture-in-picture and camera switching.
-- [ ] **Verify DTMF** — RFC 2833 against an IVR, then the SIP INFO fallback.
+- [ ] **Verify DTMF** — extension `103` captures four digits and reads them
+      back, and raises an AMI `UserEvent` so the test can assert the server
+      received them rather than trusting the display.
 - [ ] **Verify hold and resume.** Check the re-INVITE, and that `a=sendonly`
       and `a=inactive` are handled in both directions.
 - [ ] **Verify blind transfer** (REFER) reaches the right destination.
 - [ ] **Interoperability matrix.** Fidelity is the point of the project, so
-      register and complete a call against each of Asterisk (chan_pjsip),
+      register and complete a call against each of Asterisk (the fixture),
       FreeSWITCH, Kamailio, AthenaSIP and a commodity provider. Exercise every
       transport against at least one. Record what each needs in the README.
+- [ ] **Plain-RTP interop.** AthenaPhone's media is always WebRTC -- DTLS-SRTP
+      with ICE -- even over UDP signalling, so a server offering plain RTP/AVP
+      will register fine and then fail to establish media. Endpoint `1003` in
+      the fixture is the control case. Decide whether to carry a plain-RTP
+      path or to document the requirement.
 - [ ] **iOS build.** Never compiled — the development machine has no Xcode or
       CocoaPods. Every CallKit path is unverified.
+
+## Found during the first hardware run (2026-09-17)
+
+- [x] **Outbound calls crashed the app.** CallKeep's `VoiceConnectionService`
+      calls `TelecomManager.getPhoneAccount()`, which throws
+      `SecurityException` without `READ_PHONE_NUMBERS` -- inside a system
+      service callback, so it is uncatchable from JS and kills the process.
+      The permission was declared but never requested at runtime. Fixed, and
+      CallKeep is now gated on the grant.
+- [ ] **Verify the runtime permission prompt on a clean install.** The fix
+      was exercised with the permission already granted via adb, so the
+      request path itself is unproven.
+- [ ] **The Bluetooth prompt interrupts the first call.**
+      `requestForCall` asks for `BLUETOOTH_CONNECT` at dial time, so the first
+      call a user places stops on a permission dialog. Ask at setup instead.
+- [ ] **The call button is not debounced.** A second tap while the first call
+      is being placed starts a second call, and Android then asks whether to
+      end the first. Disable it until the call leaves `connecting`.
+- [ ] **Adding an account does not select it.** A new account is saved as
+      `Inactive` and has to be tapped separately, which reads like the save
+      failed.
+- [ ] **A long registration error crowds out the account name.** `Row`'s
+      `meta` needs a width cap so the title always survives.
+
+## Next — automated testing
+
+The fixture makes manual verification possible; these make it repeatable.
+
+- [x] **Make the transports take an injectable socket factory.** Done:
+      `src/sip/transports/sockets.ts`. The app installs the React Native
+      sockets, the harness installs Node's.
+- [x] **Registration tests in Node** against the fixture: all four transports
+      with digest auth, bad password, unreachable server, clean unregister.
+      Seven tests, seconds to run.
+- [ ] **Call signalling tests**: the INVITE/180/200/ACK/BYE sequence, CANCEL
+      races, and the 486/503/603 outcomes that map to `CallEndReason`. Needs a
+      WebRTC stack under Node for the SDP — see media assertions below.
+- [ ] **Re-REGISTER on expiry.** The fixture's AOR allows a 60-second expiry,
+      so this is observable without a long wait.
+- [ ] **Media assertions**, using `werift` for WebRTC under Node so RTP
+      actually flows, and an FFT against extension `101`.
+- [ ] **CI.** Signalling tests need no containers and can run on every commit;
+      the fixture works on GitHub Actions' Linux runners.
+- [ ] **Inbound call tests.** Everything above tests the app as caller. Have
+      the fixture originate to `1001` to exercise ringing and CallKeep.
+- [ ] **Device smoke test** with Maestro against the same fixture, for the
+      paths only hardware exercises: CallKeep, ConnectionService, audio
+      routing.
 
 ## Next — SIP correctness
 

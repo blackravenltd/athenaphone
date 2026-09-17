@@ -145,9 +145,19 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
     ua.start();
   }
 
-  /** Tear down the UA, terminating any live calls first. */
+  /**
+   * Tear down the UA, terminating any live calls first.
+   *
+   * Resolves once the transport has actually closed, not merely once the stop
+   * has been requested. JsSIP disconnects immediately only when no
+   * transactions or sessions are outstanding; otherwise it waits up to two
+   * seconds for them to finish first. Returning early would leave the old
+   * socket bound while `start()` opens the new one, so switching account or
+   * transport would briefly hold two.
+   */
   async stop(): Promise<void> {
-    if (!this.ua) {
+    const ua = this.ua;
+    if (!ua) {
       return;
     }
     this.shuttingDown = true;
@@ -164,15 +174,37 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
     }
     this.sessions.clear();
 
+    const closed = new Promise<void>(resolve => {
+      let settled = false;
+      // A cap slightly above JsSIP's own two-second wait, so a transport that
+      // never reports closing cannot wedge this permanently.
+      const timer = setTimeout(() => finish(), 2500);
+
+      function finish(): void {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeout(timer);
+        resolve();
+      }
+
+      ua.on('disconnected', () => finish());
+    });
+
     try {
-      this.ua.stop();
-    } finally {
-      (
-        this.ua as unknown as { removeAllListeners: () => void }
-      ).removeAllListeners();
-      this.ua = undefined;
-      this.setRegistration({ state: 'unregistered' });
+      ua.stop();
+    } catch {
+      // Already stopping; still wait for the transport below.
     }
+
+    await closed;
+
+    (ua as unknown as { removeAllListeners: () => void }).removeAllListeners();
+    if (this.ua === ua) {
+      this.ua = undefined;
+    }
+    this.setRegistration({ state: 'unregistered' });
   }
 
   register(): void {

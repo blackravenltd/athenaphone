@@ -60,6 +60,38 @@ export const PermissionsService = {
   },
 
   /**
+   * Telecom permissions, needed before CallKeep may be used on Android.
+   *
+   * CallKeep's VoiceConnectionService calls TelecomManager.getPhoneAccount()
+   * when placing an outbound call, and that throws SecurityException without
+   * READ_PHONE_NUMBERS -- inside a system service callback, where it is not
+   * catchable from JS, so the app dies outright. Declaring the permission in
+   * the manifest is not enough: it is a runtime permission and must be
+   * granted.
+   *
+   * Resolves false when the user declines, which is the caller's cue to run
+   * without the system call UI rather than to crash the first time someone
+   * dials.
+   */
+  async requestForTelecom(): Promise<boolean> {
+    if (Platform.OS !== 'android') {
+      return true;
+    }
+    // Which permission covers getPhoneAccount() changed at API 30, and
+    // react-native-callkeep's own manifest caps READ_PHONE_STATE at
+    // maxSdkVersion 29. The merger applies that cap to our declaration too,
+    // so on API 30+ READ_PHONE_STATE is not in the APK at all and asking for
+    // it can only ever fail -- which would disable CallKeep on every modern
+    // device. Ask for whichever one actually exists.
+    const permission =
+      Number(Platform.Version) >= 30
+        ? PERMISSIONS.ANDROID.READ_PHONE_NUMBERS
+        : PERMISSIONS.ANDROID.READ_PHONE_STATE;
+
+    return ensure(permission);
+  },
+
+  /**
    * Needed for the incoming-call notification on Android 13+, and for
    * missed-call alerts everywhere.
    */

@@ -6,22 +6,8 @@
 //
 
 import { Buffer } from 'buffer';
-import TcpSocket from 'react-native-tcp-socket';
 
-/**
- * The part of react-native-tcp-socket's socket we use. Its `Socket` extends an
- * untyped `EventEmitter`, so this names just the surface this transport needs.
- */
-interface StreamSocket {
-  on(event: 'data', listener: (data: Buffer | string) => void): void;
-  on(event: 'error', listener: (error: Error) => void): void;
-  on(event: 'close', listener: (hadError: boolean) => void): void;
-  write(data: string | Buffer): boolean;
-  destroy(): void;
-  removeAllListeners(): void;
-  setKeepAlive?(enable: boolean, initialDelay?: number): void;
-  setNoDelay?(noDelay: boolean): void;
-}
+import { sockets, type StreamSocket } from './sockets';
 
 /** Longest message we will buffer before assuming the stream is desynchronised. */
 const MAX_MESSAGE_BYTES = 256 * 1024;
@@ -105,19 +91,10 @@ export class StreamTransport {
       this.onconnect();
     };
 
+    const options = { host: this.host, port: this.port, ca: this.caPem };
     const socket = this.secure
-      ? (TcpSocket.connectTLS(
-          {
-            host: this.host,
-            port: this.port,
-            ...(this.caPem ? { ca: this.caPem } : {}),
-          },
-          onReady,
-        ) as unknown as StreamSocket)
-      : (TcpSocket.createConnection(
-          { host: this.host, port: this.port },
-          onReady,
-        ) as unknown as StreamSocket);
+      ? sockets().connectTls(options, onReady)
+      : sockets().connectStream(options, onReady);
 
     this.socket = socket;
 

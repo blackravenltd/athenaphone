@@ -31,6 +31,16 @@ class CallControllerImpl {
   private unsubscribers: (() => void)[] = [];
   /** iOS defers audio to CallKit; this is the call waiting for that handshake. */
   private pendingAudioCallId?: string;
+  /**
+   * Set while an outbound call is being placed.
+   *
+   * Placing a call is asynchronous -- permissions, then getUserMedia, then the
+   * INVITE -- and until the SIP session exists there is nothing in the store
+   * to show a call is already under way. A second tap in that window starts a
+   * genuinely separate call, which is how one press of the dial button ends up
+   * with two channels and "1 other call on hold".
+   */
+  private placingCall = false;
 
   async init(): Promise<void> {
     if (this.initialized) {
@@ -39,7 +49,18 @@ class CallControllerImpl {
     this.initialized = true;
 
     if (useSettingsStore.getState().useSystemCallUi) {
-      await CallKeepService.setup();
+      // The telecom permissions must be granted before CallKeep is set up.
+      // Without them the first outbound call dies in a system service
+      // callback with an uncatchable SecurityException, so refusing to enable
+      // CallKeep at all is the safe outcome.
+      const telecomGranted = await PermissionsService.requestForTelecom();
+      if (telecomGranted) {
+        await CallKeepService.setup();
+      } else {
+        console.warn(
+          '[calls] telecom permissions denied; using the in-app call UI only',
+        );
+      }
     }
     this.bindSipEvents();
     this.bindCallKeepEvents();
@@ -81,18 +102,27 @@ class CallControllerImpl {
    * a message rather than leaving a dead call on screen.
    */
   async placeCall(target: string, video?: boolean): Promise<Call> {
-    const settings = useSettingsStore.getState();
-    const wantsVideo = video ?? settings.preferVideo;
-
-    const granted = await PermissionsService.requestForCall(wantsVideo);
-    if (!granted) {
-      throw new Error('Microphone permission is required to place a call');
+    if (this.placingCall) {
+      throw new Error('A call is already being placed');
     }
+    this.placingCall = true;
 
-    const call = await sipClient.placeCall(target, { video: wantsVideo });
-    CallKeepService.reportOutgoing(call);
-    this.startAudio(call);
-    return call;
+    try {
+      const settings = useSettingsStore.getState();
+      const wantsVideo = video ?? settings.preferVideo;
+
+      const granted = await PermissionsService.requestForCall(wantsVideo);
+      if (!granted) {
+        throw new Error('Microphone permission is required to place a call');
+      }
+
+      const call = await sipClient.placeCall(target, { video: wantsVideo });
+      CallKeepService.reportOutgoing(call);
+      this.startAudio(call);
+      return call;
+    } finally {
+      this.placingCall = false;
+    }
   }
 
   async answerCall(callId: string, withVideo?: boolean): Promise<void> {

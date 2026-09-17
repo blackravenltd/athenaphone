@@ -6,30 +6,8 @@
 //
 
 import { Buffer } from 'buffer';
-import dgram from 'react-native-udp';
 
-/**
- * The part of react-native-udp's socket we use.
- *
- * Its `UdpSocket` extends Node's `EventEmitter`, whose types we deliberately
- * do not pull in, so the emitter methods come back untyped. This names just
- * the surface this transport touches.
- */
-interface DatagramSocket {
-  on(event: 'message', listener: (msg: Buffer) => void): void;
-  on(event: 'error', listener: (error: Error) => void): void;
-  bind(port: number, callback: () => void): void;
-  send(
-    buffer: Buffer,
-    offset: number,
-    length: number,
-    port: number,
-    address: string,
-    callback: (error?: Error) => void,
-  ): void;
-  removeAllListeners(): void;
-  close(): void;
-}
+import { sockets, type DatagramSocket } from './sockets';
 
 /**
  * SIP over UDP, as a JsSIP `Socket`.
@@ -95,7 +73,7 @@ export class UdpTransport {
     }
     this.binding = true;
 
-    const socket = dgram.createSocket({ type: 'udp4' }) as unknown as DatagramSocket;
+    const socket = sockets().createDatagram();
     this.socket = socket;
 
     socket.on('message', msg => {
