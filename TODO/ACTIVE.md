@@ -14,17 +14,20 @@ to end**. Everything else is speculation until this is done.
 - [x] **Bring up the Asterisk fixture.** Verified 2026-09-17: all four
       transports answer SIP, TLS verifies, both WebSocket listeners complete
       the handshake, and AMI accepts a login.
-- [ ] **Register against it** from the app, on each transport in turn. The
-      fixture answers `401` to an unauthenticated OPTIONS, so the next step is
-      a real registration with digest auth.
+- [x] **Register against it** from the app. Verified 2026-09-17 on UDP and
+      TCP, with digest auth.
+- [x] **Place and answer an audio call.** Verified: extension 101, Opus over
+      DTLS-SRTP, 1604 packets sent and 1613 received in 32 seconds with
+      negligible loss. Call timer, system call UI, hang-up and call history
+      all correct.
+- [ ] **Register on TLS and WSS** as well. Only UDP and TCP are proven.
+- [ ] **Assert the Milliwatt tone**, rather than just observing that RTP
+      flows. Needs RTP capture and an FFT, which belongs in the automated
+      harness rather than a manual run.
 - [ ] **Register against a commodity provider** too, so the fixture is not the
       only thing the app has ever spoken to. 2talk answers SIP `OPTIONS` with
       `200 OK` on UDP 5060, so it is reachable; the device account needs
       moving from WSS to UDP.
-- [ ] **Place and answer an audio call.** Extension `101` plays a 1004 Hz
-      Milliwatt tone: decode the RTP and assert the FFT peak, so the test
-      cannot pass on silence. Verify the call timer and that the audio session
-      is released on hangup.
 - [ ] **Place and answer a video call.** Verify the remote view, the local
       picture-in-picture and camera switching.
 - [ ] **Verify DTMF** — extension `103` captures four digits and reads them
@@ -44,6 +47,29 @@ to end**. Everything else is speculation until this is done.
       path or to document the requirement.
 - [ ] **iOS build.** Never compiled — the development machine has no Xcode or
       CocoaPods. Every CallKit path is unverified.
+
+## Found during the first hardware run (2026-09-17)
+
+- [x] **Outbound calls crashed the app.** CallKeep's `VoiceConnectionService`
+      calls `TelecomManager.getPhoneAccount()`, which throws
+      `SecurityException` without `READ_PHONE_NUMBERS` -- inside a system
+      service callback, so it is uncatchable from JS and kills the process.
+      The permission was declared but never requested at runtime. Fixed, and
+      CallKeep is now gated on the grant.
+- [ ] **Verify the runtime permission prompt on a clean install.** The fix
+      was exercised with the permission already granted via adb, so the
+      request path itself is unproven.
+- [ ] **The Bluetooth prompt interrupts the first call.**
+      `requestForCall` asks for `BLUETOOTH_CONNECT` at dial time, so the first
+      call a user places stops on a permission dialog. Ask at setup instead.
+- [ ] **The call button is not debounced.** A second tap while the first call
+      is being placed starts a second call, and Android then asks whether to
+      end the first. Disable it until the call leaves `connecting`.
+- [ ] **Adding an account does not select it.** A new account is saved as
+      `Inactive` and has to be tapped separately, which reads like the save
+      failed.
+- [ ] **A long registration error crowds out the account name.** `Row`'s
+      `meta` needs a width cap so the title always survives.
 
 ## Next — automated testing
 

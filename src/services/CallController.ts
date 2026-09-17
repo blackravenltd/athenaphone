@@ -39,7 +39,18 @@ class CallControllerImpl {
     this.initialized = true;
 
     if (useSettingsStore.getState().useSystemCallUi) {
-      await CallKeepService.setup();
+      // The telecom permissions must be granted before CallKeep is set up.
+      // Without them the first outbound call dies in a system service
+      // callback with an uncatchable SecurityException, so refusing to enable
+      // CallKeep at all is the safe outcome.
+      const telecomGranted = await PermissionsService.requestForTelecom();
+      if (telecomGranted) {
+        await CallKeepService.setup();
+      } else {
+        console.warn(
+          '[calls] telecom permissions denied; using the in-app call UI only',
+        );
+      }
     }
     this.bindSipEvents();
     this.bindCallKeepEvents();

@@ -7,7 +7,8 @@ WebSocket — so one fixture covers everything the app supports.
 > **Verified 2026-09-17** against Asterisk 20.6 on Ubuntu 24.04. All four
 > transports answer SIP, the TLS chain verifies, both WebSocket listeners
 > complete the `sip` sub-protocol handshake, the dialplan loads, and AMI
-> accepts a login. No call has been placed through it yet.
+> accepts a login. AthenaPhone has registered over UDP and TCP and completed
+> a call to extension 101 with two-way Opus over DTLS-SRTP.
 
 ## Why a fixture rather than a public provider
 
@@ -112,6 +113,31 @@ Endpoint `1003` is deliberately **not** WebRTC, as a control. Calls to it
 should register fine and then fail to establish media, which is the behaviour
 to expect from a provider that only speaks plain RTP. Keep it: when the app
 grows a plain-RTP path, `1003` is the test for it.
+
+## UDP does not survive Docker Desktop on macOS
+
+Registration over UDP succeeds and then dies a minute later, with Asterisk
+logging the contact as Reachable and then Unreachable:
+
+```
+Contact 1001/... is now Reachable.    RTT: 156.906 msec
+Contact 1001/... is now Unreachable.  RTT: 0.000 msec
+```
+
+Docker Desktop NATs the phone's UDP flow, so Asterisk sees the source as
+`192.168.65.1:<port>` and replies there. That works while the NAT mapping is
+alive, but the mapping is created by the phone's outbound packet and ages out;
+after that, anything Asterisk initiates -- the qualify OPTIONS, an inbound
+INVITE -- has nowhere to go, and the phone's next REGISTER gets no response.
+
+This is an environment limitation, not an app defect. Options:
+
+- **Use TCP or TLS** for testing on macOS. One long-lived connection, so there
+  is no mapping to lose. This is what the verified call above used.
+- **Use `network_mode: host`** on Linux, where it works properly, including in
+  CI.
+- **Run Asterisk natively** on the host if UDP specifically needs testing on
+  macOS.
 
 ## Networking notes
 
