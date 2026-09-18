@@ -43,7 +43,14 @@ export const colors = {
 
   text: '#e2e2e5',
   textDim: '#aaaab2',
-  textFaint: '#77777f',
+  /**
+   * Lifted from macha's #77777f, which measures 4.35:1 on the ground and only
+   * 3.57:1 on `surface2`. Faint here is not decorative: it renders contact
+   * numbers, the account's user@host, the unselected transport labels, the
+   * remote party's URI mid-call and the inactive tab labels. #8a8a93 is 4.63:1
+   * at worst and still reads as the faintest of the three steps.
+   */
+  textFaint: '#8a8a93',
 
   // White at low alpha, so borders hold on any surface.
   borderSoft: '#ffffff12',
@@ -70,12 +77,11 @@ export const colors = {
    * a form with nine inputs. AthenaPhone has text entry too -- the account
    * editor, search, the transfer prompt -- so it takes the lifted value.
    *
-   * Lifted once more, from the admin client's #3d7fb5 to #4d8ec3. Theirs was
-   * chosen against the ground, where it measures 4.50:1, but this app puts
-   * interactive text on raised surfaces too -- dialog actions sit on
-   * `surface`, where it drops to 4.18, and would reach 3.70 on `surface2`.
-   * #4d8ec3 is the same hue and the lowest value clearing 4.5:1 on every
-   * surface it can land on. Worth feeding back so both products stay level.
+   * #4d8ec3 rather than the admin client's #3d7fb5. There it is only ever a
+   * ring, a border or a meter fill, so the 3:1 non-text bar applies and it
+   * passes. Here it is genuinely text -- Save, Add account, dialog actions --
+   * so 4.5:1 applies, and #3d7fb5 gives only 4.18:1 on `surface` and 3.70:1
+   * on `surface2`. Same hue, lowest value clearing 4.5:1 everywhere it lands.
    */
   accentText: '#4d8ec3',
 
