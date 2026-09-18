@@ -47,7 +47,7 @@ const navigationTheme: Theme = {
     card: colors.surface,
     text: colors.text,
     border: colors.border,
-    primary: colors.ok,
+    primary: colors.accentText,
     notification: colors.danger,
   },
 };

@@ -151,10 +151,33 @@ dead.
 
 ## Design
 
-Dark-only, following the visual language of the sibling `macha-client-rn`
-client: a near-black ground, a layered surface ramp, a three-step text ramp,
-and a minimum 44pt touch target on every control. Tokens are in
+Dark-only, on the shared AthenaSIP palette — adopted from
+[athenasip-admin](https://github.com/blackravenltd/athenasip-admin), whose
+structure in turn comes from the sibling `macha-client-rn` client: a near-black
+ground, a layered surface ramp, a three-step text ramp, and a minimum 44pt
+touch target on every control. Tokens are in
 [`src/theme`](src/theme/index.ts).
+
+**The rule that governs the palette: the accent marks position, never
+approval.** Accent is for where you are and what you are about to act on — the
+focused control, the primary action. Green, amber and red are reserved for
+state a reader must not have to interpret, and nothing decorative may use
+them. This app previously used green as both accent and "ok", which made it
+read as relentlessly green; confining green to state makes it carry
+information again.
+
+The accent is blue-steel because AthenaSIP has no brand colour to inherit —
+its logo is monochrome — and because steel leaves green and red free to mean
+something.
+
+**Call controls are the exception, and deliberately so.** Answer and hang up
+are telephony affordances, not branding: answer is the same green as
+"registered", hang up is a saturated red. They are far apart in luminance
+(0.41 against 0.21) and differ in more than hue — answer carries dark content,
+hang up light — so they stay distinguishable for the red/green colour vision
+deficiency that would otherwise make them the worst possible pair. Position
+does the primary work: answer left, hang up right, never swapped between
+screens.
 
 **Dialogs.** The app never uses `Alert`. The platform alert cannot be styled,
 looks like a different application on top of this one, and differs between

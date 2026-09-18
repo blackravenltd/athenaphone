@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     borderRadius: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.accent,
+    backgroundColor: colors.callAnswer,
   },
   video: {
     width: TOUCH_TARGET,

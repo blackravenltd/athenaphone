@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderColor: colors.borderStrong,
   },
-  addLabel: { ...typography.label, color: colors.accent },
+  addLabel: { ...typography.label, color: colors.accentText },
   footer: {
     ...typography.caption,
     color: colors.textFaint,
