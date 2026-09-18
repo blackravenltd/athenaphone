@@ -38,7 +38,7 @@ export function DialogHost() {
       ? colors.danger
       : tone === 'cancel'
         ? colors.textDim
-        : colors.accent;
+        : colors.accentText;
 
   return (
     <Modal

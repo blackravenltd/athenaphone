@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xl,
     borderRadius: radius.pill,
   },
-  confirm: { backgroundColor: colors.accent },
+  confirm: { backgroundColor: colors.accentText },
   cancel: { ...typography.label, color: colors.textDim },
   confirmText: { ...typography.label, color: colors.background },
   disabled: { opacity: 0.35 },

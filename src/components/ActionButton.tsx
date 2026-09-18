@@ -31,15 +31,17 @@ interface ActionButtonProps {
 
 const BACKGROUND: Record<ActionTone, string> = {
   neutral: colors.surface2,
-  accept: colors.ok,
-  reject: colors.danger,
+  accept: colors.callAnswer,
+  reject: colors.callEnd,
   active: colors.text,
 };
 
 const FOREGROUND: Record<ActionTone, string> = {
   neutral: colors.text,
+  // Answer is bright enough to carry dark text; hang-up is not, so it takes
+  // light. That difference is itself part of telling the two apart.
   accept: colors.background,
-  reject: colors.background,
+  reject: colors.text,
   active: colors.background,
 };
 

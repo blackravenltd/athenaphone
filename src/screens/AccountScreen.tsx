@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   cancel: { ...typography.label, color: colors.textDim },
-  save: { ...typography.label, color: colors.accent },
+  save: { ...typography.label, color: colors.accentText },
   content: { paddingBottom: space.xxl },
   group: { paddingHorizontal: space.lg, gap: space.lg },
   field: { gap: space.xs },

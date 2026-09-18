@@ -42,7 +42,7 @@ export function Toggle({
         value={value}
         onValueChange={onChange}
         disabled={disabled}
-        trackColor={{ false: colors.track, true: colors.accent }}
+        trackColor={{ false: colors.track, true: colors.accentText }}
         thumbColor={colors.text}
         ios_backgroundColor={colors.track}
       />
