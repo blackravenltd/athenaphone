@@ -562,6 +562,20 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
       this.bindRemoteTrack(managed, session.connection);
     }
 
+    // JsSIP holds the INVITE (or the 200) until ICE gathering reports
+    // complete. With a STUN server configured and more than one interface
+    // that can take tens of seconds -- observed at ~40 s on a phone with
+    // Wi-Fi and cellular both up, which is long enough for the user to give
+    // up and cancel. Every candidate JsSIP sees comes with a `ready()` that
+    // ends the wait early; call it once candidates have gone quiet.
+    let candidateQuiet: ReturnType<typeof setTimeout> | undefined;
+    session.on('icecandidate', ({ ready }) => {
+      if (candidateQuiet) {
+        clearTimeout(candidateQuiet);
+      }
+      candidateQuiet = setTimeout(ready, ICE_GATHERING_QUIET_MS);
+    });
+
     session.on('progress', () => {
       if (call.direction === 'outbound') {
         this.patch(managed, { state: 'ringing' });
@@ -725,6 +739,12 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
 }
 
 /** The app runs a single UA; this is it. */
+/**
+ * How long ICE candidates must have stopped arriving before the offer or
+ * answer is sent without waiting for the gathering-complete event.
+ */
+const ICE_GATHERING_QUIET_MS = 500;
+
 export const sipClient = new SipClient();
 
 /**
