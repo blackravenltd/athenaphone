@@ -4,6 +4,118 @@ Newest first. One entry per milestone, recording what actually shipped.
 
 ---
 
+## 0.2.1 — 2026-09-18
+
+Adopted the shared AthenaSIP palette from athenasip-admin, along with the rule
+that governs it: **the accent marks position, never approval.**
+
+Green had been serving as both the accent and the `ok` state, so every
+affirmative control -- call button, Save, Add account, Reconnect, toggles,
+dialog confirms -- shared a hue with every healthy status, and accumulated on
+every screen until it meant nothing. Eight controls moved onto blue-steel.
+Green now appears only where it carries information: registered, favourite,
+connected, and answering a call.
+
+The accent is blue-steel because AthenaSIP has no brand colour to inherit --
+its logo is monochrome -- and because steel leaves green and red free to mean
+something. Ground, surfaces, text ramp, borders and semantics were taken
+unchanged, so the two products match.
+
+Call controls stay conventional, which the admin client recommended. Answer is
+exactly its `--ok`; hang up is a saturated red rather than its light text red,
+which is unreadable as a filled button. Red against green is the pair that
+fails for the commonest colour vision deficiency, so hue does not carry it
+alone: the two are far apart in luminance, answer carries dark content and
+hang up light, and position is fixed across every screen.
+
+Two contrast defects fixed, both found by measuring every pairing rather than
+trusting the numbers:
+
+- Interactive text at `#3d7fb5` gave 4.18:1 on `surface` and 3.70:1 on
+  `surface2`. Lifted to `#4d8ec3`. The admin client rightly pointed out its own
+  value was never failing -- there the token is only a ring or border, so the
+  3:1 non-text bar applies. Here it is genuinely text, so 4.5:1 does.
+- The faintest text step at `#77777f` gave 3.57:1 on `surface2`, and it is not
+  decorative: it renders contact numbers, the account's user@host, the
+  unselected transport labels, the remote party's URI mid-call and the
+  inactive tab labels. Lifted to `#8a8a93`.
+
+## 0.2.0 — 2026-09-17
+
+**The first release that has actually made a call.**
+
+Verified against Asterisk 20.6: registration with digest auth over UDP, TCP,
+TLS and WebSocket, and an audio call carrying two-way Opus over DTLS-SRTP --
+1604 packets sent, 1613 received in 32 seconds -- with the call timer, the
+Android system call UI, hang-up and call history all behaving.
+
+**`test/asterisk`** — a disposable Asterisk fixture serving all four
+transports at once, with a dialplan of single-purpose extensions: echo, a 1004
+Hz Milliwatt reference tone, DTMF capture and readback, busy, congestion,
+ring-forever, delayed answer, decline, music on hold, a transfer target, and
+app-to-app dialling. AMI lets a test assert what the server received rather
+than what the app displayed.
+
+**`test/integration`** — a harness running the real `SipClient` against that
+fixture from Node. `src/sip/transports/sockets.ts` makes the sockets
+injectable: the app installs the React Native ones, the harness installs
+Node's `dgram`, `net` and `tls`. Everything above the socket is the code that
+ships. Seven tests cover registration on every transport plus its failure
+modes, in seconds.
+
+**Critical actions are guarded.** `singleFlight()` and the
+`useCriticalAction()` hook: one press does the action once, repeats during and
+for a cooldown after are ignored, and `busy` drives the control's disabled
+state. Dial, answer, decline, hang up, transfer, video upgrade, redial and
+calling a contact all route through it.
+
+### Bugs that only hardware found
+
+- **Outbound calls crashed the app.** CallKeep's `VoiceConnectionService`
+  calls `TelecomManager.getPhoneAccount()`, which throws `SecurityException`
+  without `READ_PHONE_NUMBERS` -- inside a system service callback, where JS
+  cannot catch it, so the process died on the first dial. The permission was
+  declared but never requested at runtime.
+- **Which permission to ask for depends on the API level**, and not obviously:
+  react-native-callkeep's own manifest caps `READ_PHONE_STATE` at
+  `maxSdkVersion 29`, and the merger applies that cap to ours. On API 30+ it
+  is absent from the APK entirely, so requesting it could only ever fail and
+  would have disabled CallKeep on every modern device.
+- **One tap placed two calls.** Telecom echoes `RNCallKeep.startCall()` back
+  as `didReceiveStartCallAction` -- the event meant for calls dialled from
+  outside the app -- and acting on our own echo placed the call again. It also
+  bypassed every in-flight guard, because it re-enters the controller directly
+  and arrives about a second later.
+- **`SipClient.stop()` returned before the transport closed.** JsSIP
+  disconnects at once only when nothing is outstanding, and otherwise waits two
+  seconds; since `start()` calls `stop()` first, switching account or transport
+  briefly held two sockets.
+- **`endAllCalls()` does not clear orphaned telecom connections.** It iterates
+  a static map, empty in a fresh process. A connection left by a crash lives on
+  in the system telecom service; recovery is to unregister the phone account
+  and restart. Recorded in `CallKeepService`.
+
+### Fixture problems worth remembering
+
+Each presented as something other than what it was:
+
+- Asterisk was removed from Debian bookworm, so the image is Ubuntu 24.04.
+- `chan_sip` claims the `sip` WebSocket sub-protocol before
+  `res_pjsip_transport_websocket` can, making that module decline to load and
+  silently removing WebSocket support. It also competes for UDP 5060.
+- Asterisk expands `${VAR}` in the dialplan but **not** in `pjsip.conf`, so
+  the external address is rendered by the entrypoint with `envsubst`.
+- Template inheritance is `[name](template)`; written as `templates = name`
+  the objects never appear and nothing is logged.
+- The AOR must be named for the user part being registered --
+  `res_pjsip_registrar` looks it up by the To header, so any other name gives
+  404 with endpoint and auth both correct.
+- `rewrite_contact` is required for the non-WebSocket transports: JsSIP
+  registers an unroutable `sip:<random>@<random>.invalid` Contact, so Asterisk
+  could not deliver an inbound INVITE or even a BYE.
+- A CA certificate without `keyUsage=keyCertSign` is rejected by modern TLS
+  stacks with an error that reads like a server fault.
+
 ## 0.1.0 — 2026-09-16
 
 The initial build: a working SIP softphone that compiles, lints and tests
