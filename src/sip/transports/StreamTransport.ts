@@ -87,7 +87,9 @@ export class StreamTransport {
       this.socket?.setNoDelay?.(true);
       // SIP registrations are long-lived and mostly idle; without this a NAT
       // or a load balancer quietly drops the connection between REGISTERs.
-      this.socket?.setKeepAlive?.(true, 30_000);
+      // No initial delay: react-native-tcp-socket ignores the parameter and
+      // warns on every connect if one is passed, and the OS default is fine.
+      this.socket?.setKeepAlive?.(true);
       this.onconnect();
     };
 
