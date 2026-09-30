@@ -4,6 +4,56 @@ Newest first. One entry per milestone, recording what actually shipped.
 
 ---
 
+## Unreleased — 2026-09-30, AthenaSIP interop UAT
+
+First calls against anything other than the Asterisk fixture, on the
+Blackview A85 over SIP/TCP to an AthenaSIP node with rtpengine on the media
+path. Outcome: registration, inbound and outbound calls, two-way audio heard
+at both ends in both directions, BYE from each end. Recorded as passed.
+
+**Shipped from it:**
+
+- **A SIP trace that exists.** The "Verbose SIP logging" toggle had been wired
+  to nothing. `src/sip/SipTrace.ts` now wraps the JsSIP socket at
+  `createSocket`, so every transport is traced by construction: raw messages
+  both directions, byte-counted, digest `response=` redacted, chunked under
+  logcat's 4 kB truncation, with `dump()` and `dumpSdp()` for the artefact.
+  Plus `[media]` lines per call -- ICE, DTLS and connection state changes and
+  a 2 s stats line with the selected candidate pair, RTP packets each way and
+  received and sent audio energy. It was the instrument the evening ran on.
+- **Android rings on inbound calls.** A SELF_MANAGED ConnectionService draws
+  the call UI and never rings; the app deferred to it and was silent. The
+  first UAT call timed out unanswered because of this. Fixed, together with
+  the `stopRingtone` that `handleEnded` was missing, which the fix would
+  otherwise have turned into a ringtone that outlives a missed call.
+- **Outbound INVITEs no longer wait ~40 s for ICE gathering.** JsSIP holds
+  the offer until gathering completes; with the Google STUN default and Wi-Fi
+  plus cellular up, that took long enough to read as "stuck on Calling".
+  `SipClient` now sends once candidates have been quiet for 500 ms.
+- **Call history cannot hold two rows with one key.** `recordCall` replaces
+  by id and `hydrate` de-duplicates what an older build persisted.
+- **No keep-alive warning on every TCP connect** -- `react-native-tcp-socket`
+  ignores the delay parameter and said so each time.
+
+**Found and left in `ACTIVE.md`:** the `.invalid;transport=ws` Contact on
+non-WebSocket transports; the Google STUN default and what it discloses;
+audio focus refused on outbound calls; no `rport`.
+
+**The silent call, for the record.** Every early call rang, connected and
+carried the phone's audio one way; the caller's leg sat at four packets. It
+was blamed on Docker Desktop's NAT (a true observation -- the engine sees the
+browser via a peer-reflexive candidate at Docker's gateway -- that was not
+the cause, since the same NAT is present when a call works), then on the two
+legs being unalike. The cause was in AthenaSIP: `DTLS=passive` sent to
+rtpengine on the answer as well as the offer reset a handshake the engine had
+already begun as the active side toward the caller. Any call that rang for
+more than a few hundred milliseconds lost the caller's leg; auto-answering
+automation never rang long enough to see it. The lead was that the
+four-packet signature followed whichever leg had sent the offer, the phone's
+included. Four reproductions with no working case to compare against showed
+that something was broken, not what; one browser-to-browser control with a
+real ring time did. Environment traps met on the way are in `ACTIVE.md`.
+
 ## 0.2.1 — 2026-09-18
 
 Adopted the shared AthenaSIP palette from athenasip-admin, along with the rule

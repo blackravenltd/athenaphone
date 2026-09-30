@@ -11,20 +11,27 @@ shipped.
 Current release **0.2.1**. `develop` is the working branch; `main` tracks
 releases.
 
-**Verified on hardware** (Blackview A85, Android 12): registration with digest
-auth, and an audio call to the fixture's extension 101 carrying two-way Opus
-over DTLS-SRTP, with call timer, Android system call UI, hang-up and history.
+**Verified on hardware** (Blackview A85, Android 12), against two servers:
+
+- Asterisk fixture: registration with digest auth and an outbound audio call
+  to extension 101 with two-way Opus over DTLS-SRTP, call timer, Android
+  system call UI, hang-up and history.
+- AthenaSIP (interop UAT, 2026-09-30, SIP over TCP on a non-standard port):
+  registration; **inbound** calls delivered over the registration flow,
+  presented by CallKeep, rung and answered; **outbound** calls; two-way audio
+  heard at both ends in both directions; BYE from each end. Details in
+  [`COMPLETED.md`](COMPLETED.md).
 
 **Verified by the harness**: registration over UDP, TCP, TLS and WS, plus bad
 password, unreachable server and clean unregister.
 
 **Never exercised at all**: iOS — never compiled, so every CallKit path is
-unverified. Video calls. DTMF, hold and transfer end to end. Inbound calls.
+unverified. Video calls. DTMF, hold and transfer end to end.
 
 ### Running things
 
 ```bash
-npm run check                      # typecheck, lint, 35 unit tests. No Docker.
+npm run check                      # typecheck, lint, 49 unit tests. No Docker.
 cd test/asterisk && docker compose up -d
 npm run test:integration           # 7 tests against the fixture; skips if down
 ```
@@ -42,8 +49,14 @@ LAN IP for a phone.
   with `adb mdns services`; if `adb connect` times out, ping the phone first to
   wake it, then retry the same port.
 - **The app on the phone is a debug build** and fetches its JS from Metro on
-  the development machine. It shows "Unable to load script" without it. A
-  release build is needed for standalone use — see below.
+  the development machine via `localhost:8081`, so every adb session -- USB or
+  wireless -- needs `adb reverse tcp:8081 tcp:8081` first. Without it RN 0.87's
+  bridgeless mode does not show the red "Unable to load script" screen: it
+  tears the host down and the process exits about three seconds after launch.
+  `am start -W` reporting `Status: ok` while `ps` shows nothing is the
+  signature. A release build is needed for standalone use — see below.
+- **Metro bundles are not warm.** First bundle after `npm start` takes about a
+  minute; the phone shows "Bundling 99%" meanwhile.
 - **No Xcode or CocoaPods** on the development machine, hence no iOS build.
 
 ## Now — the gaps that block trusting it
@@ -64,8 +77,6 @@ LAN IP for a phone.
       target.
 - [ ] **Place and answer a video call**: remote view, local
       picture-in-picture, camera switching.
-- [ ] **Inbound calls.** Everything so far tests the app as caller. Have the
-      fixture originate to `1001` to exercise ringing and CallKeep.
 - [ ] **Register against a commodity provider**, so the fixture is not the only
       thing the app has ever spoken to. 2talk answers `OPTIONS` with `200 OK`
       on UDP 5060.
@@ -84,11 +95,35 @@ The gaps that will bite during any interoperability work.
       wherever the two differ.
 - [ ] **Failover** between SRV targets, and to the next transport when one is
       unreachable.
-- [ ] **NAT traversal for the non-WebSocket transports.** `rport` and
-      `received` get responses back, but Contact still advertises a private
-      address, so in-dialog requests can be misrouted. Needs a STUN-discovered
-      Contact, or connection reuse (RFC 5626). Servers without
-      `rewrite_contact` cannot reach us at all.
+- [ ] **Contact is a WebSocket Contact on every transport.** Registering over
+      TCP we send `Contact: <sip:...@d00dk4jg2ruo.invalid;transport=ws>` --
+      an unresolvable host (RFC 6761) and the wrong transport -- because
+      JsSIP's WebSocket Contact leaks onto the sockets in
+      `src/sip/transports`. A registrar that routes by the registration flow
+      (RFC 5626; we send `+sip.ice`, `reg-id` and `+sip.instance`) never
+      reads it, which is why AthenaSIP could reach us. One that resolves it
+      cannot reach us at all, and even a flow-routing one loses us the moment
+      the connection blips, until re-registration. Confirmed on the wire.
+- [ ] **Every account defaults to Google's STUN server** --
+      `accountDefaults.iceServers`. The README promises "no hosted service in
+      the middle"; this is one, on by default. Observed effect on a LAN-only
+      call: `c=IN IP4 <public address>` and two `srflx` candidates disclosing
+      the device's public Wi-Fi and cellular addresses to a server one hop
+      away, and a 2340-byte INVITE that would fragment on UDP. Decide: drop
+      the default, or keep it and say so in the README and the account form.
+- [ ] **Audio focus is refused on outbound calls.** `InCallManager` logs
+      `requestAudioFocus(): usage=CALL, res=AUDIOFOCUS_REQUEST_FAILED` when we
+      start audio immediately after `CallKeepService.reportOutgoing`, while
+      Telecom is still switching audio modes; inbound gets it granted. Playout
+      still ran, so this is latent rather than broken, but it is the sort of
+      thing that surfaces as silence on another device. Start audio after
+      Telecom settles, or on the ConnectionService's audio-state callback.
+- [ ] **We do not send `rport`.** `UdpTransport`'s doc comment says we set it;
+      on the JsSIP TCP path our Via carries only a branch. Either send it or
+      correct the comment.
+- [ ] **NAT traversal for the non-WebSocket transports.** Beyond the Contact
+      bug above: needs a STUN-discovered Contact, or connection reuse
+      (RFC 5626). Servers without `rewrite_contact` cannot reach us at all.
 - [ ] **Plain-RTP interop.** Media is always WebRTC — DTLS-SRTP with ICE —
       even over UDP signalling, so a server offering plain RTP/AVP registers
       fine and then fails to establish media. Fixture endpoint `1003` is the
@@ -96,8 +131,9 @@ The gaps that will bite during any interoperability work.
       requirement.
 - [ ] **TCP fallback for oversized messages.** RFC 3261 18.1.1 requires
       switching to a congestion-controlled transport near the MTU.
-      `UdpTransport` warns above 1300 bytes but still sends, so a large INVITE
-      with video SDP can fragment.
+      `UdpTransport` warns above 1300 bytes but still sends. With the STUN
+      default above an audio-only INVITE is already 2340 bytes, so this is not
+      only a video problem.
 - [ ] **Digest authentication edge cases** — `qop=auth-int`, stale nonces,
       re-authentication mid-dialog, against more than one server.
 - [ ] **Codec selection.** Opus/G.722/PCMU ordering and a video bandwidth cap,
@@ -172,8 +208,11 @@ Small, specific, and each independently fixable.
       the most fragile part of the app and has no coverage.
 - [ ] **Error surfacing.** `SipClient` emits an `error` event nothing listens
       to. Wire it to the dialog host or a diagnostics screen.
-- [ ] **Structured SIP logging.** The `verboseSipLogging` setting exists but is
-      not honoured. Hook it to JsSIP's `debug` and add a log viewer.
+- [ ] **A log viewer in the app.** `verboseSipLogging` now drives `sipTrace`,
+      which captures raw SIP in both directions at the socket and holds the
+      last 500 messages, but the only way to read it is Metro or `adb logcat`.
+      `sipTrace.dump()` and `dumpSdp()` want a diagnostics screen and a share
+      sheet, so a trace can come off a device with no cable attached.
 - [ ] **Accessibility pass.** Labels exist on the main controls; needs a real
       screen-reader run and a check of dialpad hit targets.
 - [ ] **WSS in the harness.** JsSIP's WebSocket transport uses the global
