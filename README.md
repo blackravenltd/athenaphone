@@ -130,6 +130,31 @@ docker compose up --build
 Register as `1001` / `athenaphone`. See
 [`test/asterisk/README.md`](test/asterisk/README.md) for the extension table.
 
+### Capturing a SIP trace
+
+**Settings → Diagnostics → Verbose SIP logging** turns on `src/sip/SipTrace.ts`,
+which wraps the JsSIP socket and records every message in both directions as
+it went on the wire — before JsSIP has parsed it, and after it has serialised
+it, so nothing above the transport can paraphrase what is recorded. It covers
+all five transports, because `createSocket` is the one place a socket is
+built.
+
+Messages go to the console, so Metro or `adb logcat -s ReactNativeJS` captures
+a call as it happens:
+
+```bash
+adb logcat -c && adb logcat -s ReactNativeJS | tee trace.log
+```
+
+Long messages are split into numbered parts, because logcat silently truncates
+a record over about 4 kB and a WebRTC INVITE is bigger than that.
+
+The last 500 messages are also kept in memory: `sipTrace.dump()` returns the
+whole capture and `sipTrace.dumpSdp()` returns just the SDP bodies, tagged
+with direction and offer/answer role — which is the artefact an
+interoperability result gets argued from. Digest `response=` values are
+redacted; `sipTrace.setRedactCredentials(false)` restores them.
+
 With the fixture up, the integration harness runs the real SIP stack against
 it from Node — no device, no emulator:
 

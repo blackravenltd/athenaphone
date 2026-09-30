@@ -33,6 +33,7 @@ import {
 import { TypedEmitter } from '../utils/emitter';
 import { uuidv4 } from '../utils/id';
 import { bareUri, toSipUri } from '../utils/sipUri';
+import { sipTrace } from './SipTrace';
 import { StreamTransport } from './transports/StreamTransport';
 import { UdpTransport } from './transports/UdpTransport';
 
@@ -615,6 +616,8 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
       ) => void;
     };
 
+    sipTrace.watchPeerConnection(peerconnection, managed.call.id);
+
     pc.addEventListener('track', (event: never) => {
       const { streams } = event as unknown as { streams: MediaStream[] };
       const [remoteStream] = streams;
@@ -731,6 +734,16 @@ export const sipClient = new SipClient();
  * it just has a `Socket`.
  */
 function createSocket(account: SipAccount): Socket {
+  // Wrapped here rather than inside each transport: this is the one place a
+  // socket is built, so every transport is traced by construction and a new
+  // one cannot be added that quietly is not.
+  return sipTrace.traceSocket(
+    buildSocket(account),
+    account.transport.toUpperCase(),
+  );
+}
+
+function buildSocket(account: SipAccount): Socket {
   const host = account.server?.trim() || account.domain;
   const port = account.port ?? defaultPortFor(account.transport);
 

@@ -22,6 +22,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { CallController } from './src/services/CallController';
 import { PermissionsService } from './src/services/PermissionsService';
 import { sipClient } from './src/sip/SipClient';
+import { sipTrace } from './src/sip/SipTrace';
 import { useAccountStore } from './src/store/accountStore';
 import { useContactsStore } from './src/store/contactsStore';
 import { useHistoryStore } from './src/store/historyStore';
@@ -37,6 +38,9 @@ export default function App() {
     async function bootstrap() {
       // Settings first: CallController.init() reads useSystemCallUi.
       await useSettingsStore.getState().hydrate();
+      // Before connectActiveAccount() below builds a socket, or the REGISTER
+      // that starts everything off happens outside the trace.
+      sipTrace.setEnabled(useSettingsStore.getState().verboseSipLogging);
       await Promise.all([
         useAccountStore.getState().hydrate(),
         useHistoryStore.getState().hydrate(),
@@ -63,6 +67,16 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  // Keep the trace following the setting, so turning it on mid-session takes
+  // effect on the live socket rather than at the next reconnect.
+  useEffect(
+    () =>
+      useSettingsStore.subscribe(state =>
+        sipTrace.setEnabled(state.verboseSipLogging),
+      ),
+    [],
+  );
 
   // Coming back from the background can find a registration that quietly
   // expired while the socket was suspended.
