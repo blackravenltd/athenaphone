@@ -308,8 +308,16 @@ class CallControllerImpl {
     const settings = useSettingsStore.getState();
 
     if (settings.useSystemCallUi && CallKeepService.isReady) {
-      // CallKit / ConnectionService owns the ringtone and the call screen.
       CallKeepService.reportIncoming(call);
+
+      // CallKit rings; a SELF_MANAGED ConnectionService does not. Android
+      // draws the call UI and leaves the sound to the app, so deferring to
+      // "the system" here is right on iOS and silent on Android -- an
+      // inbound call that shows a card and makes no noise, which is
+      // indistinguishable from a call that never arrived.
+      if (Platform.OS === 'android' && settings.ringtoneEnabled) {
+        AudioService.startRingtone();
+      }
     } else if (settings.ringtoneEnabled) {
       AudioService.startRingtone();
     }
@@ -320,6 +328,11 @@ class CallControllerImpl {
   }
 
   private handleEnded(call: Call): void {
+    // A call that ends while still ringing -- cancelled by the caller, or
+    // timed out unanswered -- never passes through answerCall or rejectCall,
+    // so this is the only place that stops the ringtone for it.
+    AudioService.stopRingtone();
+
     const store = useCallStore.getState();
     store.removeCall(call.id);
     void useHistoryStore.getState().recordCall(call);

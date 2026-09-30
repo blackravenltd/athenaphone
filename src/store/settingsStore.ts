@@ -12,7 +12,12 @@ import { Storage, StorageKeys } from '../services/Storage';
 export interface AppSettings {
   /** Hand incoming calls to CallKit / ConnectionService. */
   useSystemCallUi: boolean;
-  /** Play a ringtone in-app when the system UI is not handling it. */
+  /**
+   * Ring for inbound calls. On Android this plays even when the system call
+   * screen is on, because a SELF_MANAGED ConnectionService draws the UI but
+   * never rings; on iOS CallKit owns the sound and this covers the in-app
+   * path only.
+   */
   ringtoneEnabled: boolean;
   vibrateOnRing: boolean;
   /** Play a short tone for each dialpad press. */

@@ -175,7 +175,7 @@ export function SettingsScreen({ onEditAccount }: SettingsScreenProps) {
         <View style={styles.group}>
           <Toggle
             label="Ringtone"
-            detail="Play a ringtone when the system UI is not handling the call"
+            detail="Ring for incoming calls. Android rings in-app even with the system call screen on."
             value={settings.ringtoneEnabled}
             onChange={update('ringtoneEnabled')}
             disabled={settings.useSystemCallUi}
