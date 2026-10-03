@@ -95,6 +95,31 @@ CA entered. The checks run against it on 2026-10-03 are in
       call to a single instance that day was auto-answered, so this may
       have been the stale copy alone -- unproven.
 
+### The connection to the server
+
+- [ ] **Watch the connection and re-register when it goes.** Flagged by Tom,
+      2026-10-04. When the macnessa node restarted at 01:30 the phone's TLS
+      connection died without the close ever reaching it (a NAT on the path),
+      so the app sat "registered" on a dead flow: the node held the binding
+      and answered 480 to calls. The refresh at 01:33 was written into the
+      dead connection, timed out, and left the account Offline with no
+      retry. The corvus restart the night before, on the LAN, was noticed in
+      two seconds, so a close that arrives is handled; one that does not, is
+      not. What the standards ask:
+      - RFC 5626 4.4: keep each flow alive -- double CRLF on TCP and TLS,
+        STUN on UDP -- and treat a missing pong, or a close, as the flow
+        failing. `StreamTransport` already answers the server's pings; it
+        sends none of its own.
+      - RFC 5626 4.5: on flow failure, re-register over a new flow with the
+        same `+sip.instance` and `reg-id` after a randomised backoff, so the
+        new binding replaces the old.
+      - A refresh that fails should be retried with backoff, not left as
+        Offline until someone restarts the app.
+      AthenaSIP answers double CRLF with CRLF on TCP and TLS, and STUN on UDP
+      5060, so there is a server to test against. Re-check this with the
+      foreground service in place: a backgrounded app may also lose its
+      connection to Android rather than the network.
+
 ### Everything else
 
 - [ ] **iOS build.** Never compiled. Needs Xcode and CocoaPods, then
@@ -205,8 +230,11 @@ The gaps that will bite during any interoperability work.
 - [ ] **Push notifications.** Calls only arrive while the app is running and
       registered. PushKit on iOS, FCM high-priority data on Android, and a push
       gateway (RFC 8599 REGISTER parameters).
-- [ ] **Background registration on Android** — a foreground service to hold the
-      connection open, plus battery-optimisation prompting.
+- [ ] **Background registration on Android: battery optimisation.** A
+      foreground service now holds the process while an account is online,
+      with a notification saying so. Still to do: prompt for exemption from
+      battery optimisation, which some vendors apply even to foreground
+      services, and restart registration after a reboot.
 - [ ] **Network change handling.** Re-register on Wi-Fi to cellular, via
       `@react-native-community/netinfo` and `sipClient.refreshRegistration()`.
 - [ ] **Attended transfer UI.** `CallController.attendedTransfer` and
