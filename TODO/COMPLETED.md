@@ -4,7 +4,12 @@ Newest first. One entry per milestone, recording what actually shipped.
 
 ---
 
-## Unreleased — 2026-10-03, device checks against the deployed AthenaSIP
+## 0.3.0 — 2026-10-03
+
+Interoperation with AthenaSIP: the UAT against the test fixture, then the
+deployed node, ending with a video call on a release build.
+
+### 2026-10-03, device checks against the deployed AthenaSIP
 
 The A85 against corvus-fi-1 (realm `10.35.1.20`, AthenaSIP's builtin media
 engine, which relays the caller's offer and cannot convert it), registered
@@ -64,7 +69,7 @@ passes the 488 back instead.
 **Left in `ACTIVE.md`:** a completed call over UDP; TLS refused without the
 CA; why one ringing call was not auto-answered.
 
-## Unreleased — 2026-09-30, AthenaSIP interop UAT
+### 2026-09-30, AthenaSIP interop UAT
 
 First calls against anything other than the Asterisk fixture, on the
 Blackview A85 over SIP/TCP to an AthenaSIP node with rtpengine on the media

@@ -8,7 +8,7 @@ shipped.
 
 ## Where things stand
 
-Current release **0.2.1**. `develop` is the working branch; `main` tracks
+Current release **0.3.0**. `develop` is the working branch; `main` tracks
 releases.
 
 **Verified on hardware** (Blackview A85, Android 12), against three servers:
