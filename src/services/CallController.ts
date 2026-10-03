@@ -17,6 +17,7 @@ import { AudioService } from './AudioService';
 import { CallKeepService } from './CallKeepService';
 import { CredentialStore } from './CredentialStore';
 import { PermissionsService } from './PermissionsService';
+import { RegistrationNotice } from './RegistrationNotice';
 
 /**
  * The seam between the SIP engine and everything platform-shaped.
@@ -221,6 +222,7 @@ class CallControllerImpl {
     this.unsubscribers.push(
       sipClient.on('registration', status => {
         useAccountStore.getState().setRegistration(status);
+        RegistrationNotice.sync();
       }),
 
       sipClient.on('call:new', call => {

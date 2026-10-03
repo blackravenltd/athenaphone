@@ -146,6 +146,12 @@ export function SettingsScreen({ onEditAccount }: SettingsScreenProps) {
             onChange={update('useSystemCallUi')}
           />
           <Toggle
+            label="Remain in background"
+            detail="Stay online for calls when AthenaPhone is not on screen. Shows a notification while online."
+            value={settings.remainInBackground}
+            onChange={update('remainInBackground')}
+          />
+          <Toggle
             label="Auto answer"
             detail="Answer incoming calls without touching the phone"
             value={settings.autoAnswer}

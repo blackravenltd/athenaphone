@@ -21,6 +21,7 @@ import { AthenaMark } from './src/components/Logo';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { CallController } from './src/services/CallController';
 import { PermissionsService } from './src/services/PermissionsService';
+import { RegistrationNotice } from './src/services/RegistrationNotice';
 import { sipClient } from './src/sip/SipClient';
 import { sipTrace } from './src/sip/SipTrace';
 import { useAccountStore } from './src/store/accountStore';
@@ -75,6 +76,18 @@ export default function App() {
       useSettingsStore.subscribe(state =>
         sipTrace.setEnabled(state.verboseSipLogging),
       ),
+    [],
+  );
+
+  // Start or stop the background service as soon as the setting changes,
+  // rather than at the next registration event.
+  useEffect(
+    () =>
+      useSettingsStore.subscribe((state, previous) => {
+        if (state.remainInBackground !== previous.remainInBackground) {
+          RegistrationNotice.sync();
+        }
+      }),
     [],
   );
 
