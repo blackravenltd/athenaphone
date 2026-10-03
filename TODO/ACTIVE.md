@@ -11,7 +11,7 @@ shipped.
 Current release **0.2.1**. `develop` is the working branch; `main` tracks
 releases.
 
-**Verified on hardware** (Blackview A85, Android 12), against two servers:
+**Verified on hardware** (Blackview A85, Android 12), against three servers:
 
 - Asterisk fixture: registration with digest auth and an outbound audio call
   to extension 101 with two-way Opus over DTLS-SRTP, call timer, Android
@@ -21,10 +21,12 @@ releases.
   presented by CallKeep, rung and answered; **outbound** calls; two-way audio
   heard at both ends in both directions; BYE from each end. Details in
   [`COMPLETED.md`](COMPLETED.md).
-
-**Not yet run against the deployed AthenaSIP** (corvus-fi-1, realm
-`10.35.1.20`, since 2026-10-02). The account exists and the checks are
-listed under "Next session with the phone" below.
+- Deployed AthenaSIP (corvus-fi-1, realm `10.35.1.20`, 2026-10-03):
+  registration as `athenaphone` over TCP, UDP and TLS; a plain-RTP offer
+  refused with 488 before ringing; the 407 challenge on an outbound INVITE
+  over UDP; an inbound WebRTC call from the console softphone over TLS,
+  with audio heard in both directions. No call has
+  been completed over UDP -- see "Next session with the phone" below.
 
 **Verified by the harness**: registration over UDP, TCP, TLS and WS, plus bad
 password, unreachable server and clean unregister.
@@ -35,7 +37,7 @@ unverified. Video calls. DTMF, hold and transfer end to end.
 ### Running things
 
 ```bash
-npm run check                      # typecheck, lint, 49 unit tests. No Docker.
+npm run check                      # typecheck, lint, 58 unit tests. No Docker.
 cd test/asterisk && docker compose up -d
 npm run test:integration           # 7 tests against the fixture; skips if down
 ```
@@ -67,31 +69,26 @@ LAN IP for a phone.
 
 ### Next session with the phone
 
-Everything here needs the A85 in hand and is otherwise ready. The deployed
-AthenaSIP node is `10.35.1.20`: UDP and TCP 5060, TLS 5061, plain WS 8088.
-The phone's account is `athenaphone@10.35.1.20`, already set to
-`media_profile: webrtc` on the server; Tom enters the password on the device.
+Needs the A85 in hand. The deployed AthenaSIP node is `10.35.1.20`: UDP and
+TCP 5060, TLS 5061, plain WS 8088. The phone has an account for it,
+"AthenaSIP corvus", subscriber `athenaphone`, currently on TLS with the test
+CA entered. The checks run against it on 2026-10-03 are in
+[`COMPLETED.md`](COMPLETED.md).
 
-- [ ] **Register as `athenaphone` over TCP** and take an inbound call. The
-      first INVITE should carry `UDP/TLS/RTP/SAVPF` with a fingerprint and ICE
-      credentials, with no 488 before it.
-- [ ] **Watch a 488-then-reoffer call.** For an account *not* marked WebRTC,
-      AthenaSIP now offers plain RTP, takes our 488, and offers WebRTC once.
-      Each rejected offer builds and tears down a CallKeep connection; check
-      it leaves no ring blip and no stray missed-call entry, and tell the
-      AthenaSIP session either way.
-- [ ] **Place a call over UDP.** AthenaSIP challenges every INVITE with 407
-      (RFC 3261 22.3) unless it arrives on a TCP, TLS or WebSocket connection
-      the caller registered over. JsSIP's `RequestSender` answers 401 and 407
-      alike when the UA holds a password, so this should work but has never
-      run: the trace should show INVITE, 407, INVITE with
-      `Proxy-Authorization`, 200. Expect fragmentation -- with the STUN
-      default the INVITE is about 2340 bytes -- and look there first if it
-      fails.
-- [ ] **Register over TLS.** The node's certificate is signed by AthenaSIP's
-      own test CA, so the account needs that CA's PEM
-      (`tls/ca/snakeca.crt` in the athenasip repo; the public certificate
-      only).
+- [ ] **Complete a call over UDP.** The authentication half is verified:
+      INVITE (2325 bytes), 407, ACK, INVITE with `Proxy-Authorization`
+      (2599 bytes), 100 Trying. Both INVITEs fragmented and arrived on the
+      LAN. Nobody answered as `1001`, so it ended in 408; a 200 and audio
+      over UDP are still unseen. The callee has to be the admin console's
+      softphone, the only WebRTC peer there is.
+- [ ] **Check that TLS fails without the CA.** Registration over TLS with
+      the test CA's certificate in the account works; that it is refused
+      with the field empty has not been tried.
+- [ ] **Find out why a ringing call was not auto-answered.** On 2026-10-03 a
+      call that reached a stale, hot-reloaded copy of the app rang for 30
+      seconds with auto-answer on. Stale copies no longer occur, and every
+      call to a single instance that day was auto-answered, so this may
+      have been the stale copy alone -- unproven.
 
 ### Everything else
 
@@ -165,8 +162,11 @@ The gaps that will bite during any interoperability work.
       requirement. Against AthenaSIP it is handled server-side: the default
       realm policy guesses from the transport (WebSocket means WebRTC,
       anything else plain RTP), so we are offered RTP/AVP on TCP or UDP and
-      answer 488; the node then re-offers WebRTC once, or skips the round
-      trip when the account is set to `media_profile: webrtc`.
+      answer 488; a node with rtpengine then re-offers WebRTC once, or
+      skips the round trip when the account is set to `media_profile:
+      webrtc`. A node on the builtin media engine (corvus-fi-1) can only
+      relay what the caller offered, so there a plain-RTP caller simply
+      gets our 488.
 - [ ] **TCP fallback for oversized messages.** RFC 3261 18.1.1 requires
       switching to a congestion-controlled transport near the MTU.
       `UdpTransport` warns above 1300 bytes but still sends. With the STUN

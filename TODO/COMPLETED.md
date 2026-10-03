@@ -4,6 +4,54 @@ Newest first. One entry per milestone, recording what actually shipped.
 
 ---
 
+## Unreleased — 2026-10-03, device checks against the deployed AthenaSIP
+
+The A85 against corvus-fi-1 (realm `10.35.1.20`, AthenaSIP's builtin media
+engine, which relays the caller's offer and cannot convert it), registered
+as subscriber `athenaphone`.
+
+**Verified:**
+
+- **Registration over TCP, UDP and TLS**, the last on 5061 with AthenaSIP's
+  test CA in the account.
+- **An inbound WebRTC call**, from the admin console's softphone as `1001`,
+  over TLS. First INVITE `UDP/TLS/RTP/SAVPF` with fingerprint and ICE
+  credentials, no 488; auto-answered; ICE and DTLS on host candidates, media
+  direct between browser and phone; a mid-call UPDATE answered; BYE from the
+  browser; audio heard in both directions. The first attempt was silent one
+  way because the Mac's microphone input was a loopback device.
+- **The 407 challenge on an INVITE over UDP**: INVITE, 407, ACK, INVITE with
+  `Proxy-Authorization`, 100 Trying. The call itself was not answered.
+
+**Shipped from it:**
+
+- **A plain-RTP offer is refused before it rings.** It used to get 180, a
+  half-second flash of the system call screen, then 488 and a missed call in
+  Recents. `SipClient` now refuses inside `newRTCSession`, before the 180,
+  unless the offer has a DTLS-keyed audio stream with a fingerprint
+  (`canAnswerOffer`, `src/utils/sdp.ts`). Confirmed on the device.
+- **No 482 to a quick re-offer.** AthenaSIP ACKed our 488 and re-offered on
+  a new branch 8 ms later; JsSIP still listed the first transaction, because
+  its zero Timer I is a `setTimeout(0)`, took the re-INVITE for a merged
+  request and answered 482 Loop Detected. `patches/jssip+3.13.8.patch` ends
+  the transaction when the ACK is processed. Covered by
+  `__tests__/jssipTimerI.test.ts`, which fails if the patch is lost; not
+  re-run on the device, since corvus-fi-1 no longer re-offers.
+- **A hot reload no longer leaves the old SIP client registered.** Each
+  Metro reload kept the previous `SipClient` and its socket, so after two
+  edits three copies were registered and a call went to a stale one. In
+  debug builds the previous client is now silenced and stopped when its
+  replacement is created. Confirmed on the device: one unregister, one
+  register, status shown correctly.
+- **The CA certificate field holds a PEM.** It was single-line.
+
+**Found on the AthenaSIP side, fixed there:** the node's re-offer after a
+488 repeated the same plain-RTP offer; behind the builtin engine it now
+passes the 488 back instead.
+
+**Left in `ACTIVE.md`:** a completed call over UDP; TLS refused without the
+CA; why one ringing call was not auto-answered.
+
 ## Unreleased — 2026-09-30, AthenaSIP interop UAT
 
 First calls against anything other than the Asterisk fixture, on the
