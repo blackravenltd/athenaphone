@@ -32,6 +32,7 @@ import {
 } from '../types';
 import { TypedEmitter } from '../utils/emitter';
 import { uuidv4 } from '../utils/id';
+import { canAnswerOffer } from '../utils/sdp';
 import { bareUri, toSipUri } from '../utils/sipUri';
 import { sipTrace } from './SipTrace';
 import { StreamTransport } from './transports/StreamTransport';
@@ -526,6 +527,19 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
     }
 
     const { session, request } = event;
+
+    // Refuse an offer we cannot answer here, inside the event, where JsSIP
+    // has not yet sent 180. Left to answer() it fails the same way, but only
+    // after the caller has heard ringing, the system call screen has been
+    // put up and taken down, and a missed call has been written to history.
+    if (!canAnswerOffer(request.body)) {
+      session.terminate({
+        status_code: 488,
+        reason_phrase: 'Not Acceptable Here',
+      });
+      return;
+    }
+
     // An INVITE offering a video m-line means the caller wants video.
     const offeredVideo = /^m=video /m.test(request.body ?? '');
 
