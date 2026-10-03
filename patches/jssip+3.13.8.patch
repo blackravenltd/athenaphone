@@ -1,0 +1,26 @@
+diff --git a/node_modules/jssip/lib/Transactions.js b/node_modules/jssip/lib/Transactions.js
+index d7f74de..dd1b00b 100644
+--- a/node_modules/jssip/lib/Transactions.js
++++ b/node_modules/jssip/lib/Transactions.js
+@@ -560,9 +560,19 @@ function checkTransaction({ _transactions }, request) {
+                 }
+                 else if (tr.state === C.STATUS_COMPLETED) {
+                     tr.state = C.STATUS_CONFIRMED;
+-                    tr.I = setTimeout(() => {
++                    // A zero Timer I means "terminate now" (RFC 3261 17.2.1).
++                    // Deferring it to a timer leaves the transaction listed
++                    // while the rest of the current read is parsed, and a new
++                    // INVITE for the same call in that read is then taken
++                    // for a merged request and answered 482.
++                    if (Timers.TIMER_I === 0) {
+                         tr.timer_I();
+-                    }, Timers.TIMER_I);
++                    }
++                    else {
++                        tr.I = setTimeout(() => {
++                            tr.timer_I();
++                        }, Timers.TIMER_I);
++                    }
+                     return true;
+                 }
+             }
