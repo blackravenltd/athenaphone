@@ -22,6 +22,10 @@ releases.
   heard at both ends in both directions; BYE from each end. Details in
   [`COMPLETED.md`](COMPLETED.md).
 
+**Not yet run against the deployed AthenaSIP** (corvus-fi-1, realm
+`10.35.1.20`, since 2026-10-02). The account exists and the checks are
+listed under "Next session with the phone" below.
+
 **Verified by the harness**: registration over UDP, TCP, TLS and WS, plus bad
 password, unreachable server and clean unregister.
 
@@ -60,6 +64,36 @@ LAN IP for a phone.
 - **No Xcode or CocoaPods** on the development machine, hence no iOS build.
 
 ## Now — the gaps that block trusting it
+
+### Next session with the phone
+
+Everything here needs the A85 in hand and is otherwise ready. The deployed
+AthenaSIP node is `10.35.1.20`: UDP and TCP 5060, TLS 5061, plain WS 8088.
+The phone's account is `athenaphone@10.35.1.20`, already set to
+`media_profile: webrtc` on the server; Tom enters the password on the device.
+
+- [ ] **Register as `athenaphone` over TCP** and take an inbound call. The
+      first INVITE should carry `UDP/TLS/RTP/SAVPF` with a fingerprint and ICE
+      credentials, with no 488 before it.
+- [ ] **Watch a 488-then-reoffer call.** For an account *not* marked WebRTC,
+      AthenaSIP now offers plain RTP, takes our 488, and offers WebRTC once.
+      Each rejected offer builds and tears down a CallKeep connection; check
+      it leaves no ring blip and no stray missed-call entry, and tell the
+      AthenaSIP session either way.
+- [ ] **Place a call over UDP.** AthenaSIP challenges every INVITE with 407
+      (RFC 3261 22.3) unless it arrives on a TCP, TLS or WebSocket connection
+      the caller registered over. JsSIP's `RequestSender` answers 401 and 407
+      alike when the UA holds a password, so this should work but has never
+      run: the trace should show INVITE, 407, INVITE with
+      `Proxy-Authorization`, 200. Expect fragmentation -- with the STUN
+      default the INVITE is about 2340 bytes -- and look there first if it
+      fails.
+- [ ] **Register over TLS.** The node's certificate is signed by AthenaSIP's
+      own test CA, so the account needs that CA's PEM
+      (`tls/ca/snakeca.crt` in the athenasip repo; the public certificate
+      only).
+
+### Everything else
 
 - [ ] **iOS build.** Never compiled. Needs Xcode and CocoaPods, then
       `pod install`. Every CallKit path is unverified, and that is the half
@@ -128,12 +162,27 @@ The gaps that will bite during any interoperability work.
       even over UDP signalling, so a server offering plain RTP/AVP registers
       fine and then fails to establish media. Fixture endpoint `1003` is the
       control case. Decide: carry a plain-RTP path, or document the
-      requirement.
+      requirement. Against AthenaSIP it is handled server-side: the default
+      realm policy guesses from the transport (WebSocket means WebRTC,
+      anything else plain RTP), so we are offered RTP/AVP on TCP or UDP and
+      answer 488; the node then re-offers WebRTC once, or skips the round
+      trip when the account is set to `media_profile: webrtc`.
 - [ ] **TCP fallback for oversized messages.** RFC 3261 18.1.1 requires
       switching to a congestion-controlled transport near the MTU.
       `UdpTransport` warns above 1300 bytes but still sends. With the STUN
       default above an audio-only INVITE is already 2340 bytes, so this is not
       only a video problem.
+- [ ] **Answer OPTIONS with our capabilities.** We register no `newOptions`
+      listener, so JsSIP replies with a bare `200` and no body. RFC 3261 11.2
+      says the response SHOULD carry the SDP an INVITE would be answered
+      with. AthenaSIP can probe registered clients with OPTIONS (off by
+      default, `behaviour.qualify_interval` per realm) and will make its
+      first offer WebRTC if our 200 carries WebRTC SDP -- which would remove
+      the 488-and-reoffer round trip it otherwise needs to reach us on TCP or
+      UDP. A static body is enough and can be honest: AthenaSIP (from its
+      commit 58dfb65) reads WebRTC from a `UDP/TLS/RTP/SAVPF` m-line alone, so
+      the reply needs the m-line, a `c=` line and our codecs -- no
+      fingerprint, no ICE attributes, no peer connection per probe.
 - [ ] **Digest authentication edge cases** — `qop=auth-int`, stale nonces,
       re-authentication mid-dialog, against more than one server.
 - [ ] **Codec selection.** Opus/G.722/PCMU ordering and a video bandwidth cap,
