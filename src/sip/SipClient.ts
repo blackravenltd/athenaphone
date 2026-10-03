@@ -752,14 +752,30 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
   }
 }
 
-/** The app runs a single UA; this is it. */
 /**
  * How long ICE candidates must have stopped arriving before the offer or
  * answer is sent without waiting for the gathering-complete event.
  */
 const ICE_GATHERING_QUIET_MS = 500;
 
+/** The app runs a single UA; this is it. */
 export const sipClient = new SipClient();
+
+// A Metro hot reload evaluates this module again and makes a second client,
+// while the first keeps its socket and its registration. The server then
+// holds a binding per reload and may deliver a call to code that no longer
+// exists on disk. Shut the previous one down as its replacement appears,
+// deaf first: its listeners write to stores the new client shares, and its
+// parting "unregistered" would otherwise land after the new registration.
+if (__DEV__) {
+  const slot = globalThis as { __athenaPhoneSipClient?: SipClient };
+  const previous = slot.__athenaPhoneSipClient;
+  if (previous) {
+    previous.removeAllListeners();
+    previous.stop().catch(() => undefined);
+  }
+  slot.__athenaPhoneSipClient = sipClient;
+}
 
 /**
  * Build the JsSIP socket for an account's transport.
