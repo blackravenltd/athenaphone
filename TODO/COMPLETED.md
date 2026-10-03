@@ -45,6 +45,18 @@ as subscriber `athenaphone`.
   register, status shown correctly.
 - **The CA certificate field holds a PEM.** It was single-line.
 
+- **A release build on the phone.** `assembleRelease` for `arm64-v8a`,
+  installed over the debug build with accounts and credentials intact; it
+  registers and takes calls with no Metro. Signed with the debug keystore.
+- **An inbound video call.** From the console softphone, on the release
+  build over TLS: audio and video m-lines both answered `sendrecv`,
+  auto-answered with the front camera, the browser's picture full screen
+  with the local one inset, picture and voice confirmed both ways. The
+  first video call the app has taken.
+- **The trace reads audio level from the audio stream.** On that call it
+  reported silence throughout, having taken the level from the video
+  stream's statistics.
+
 **Found on the AthenaSIP side, fixed there:** the node's re-offer after a
 488 repeated the same plain-RTP offer; behind the builtin engine it now
 passes the 488 back instead.

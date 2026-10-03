@@ -25,14 +25,17 @@ releases.
   registration as `athenaphone` over TCP, UDP and TLS; a plain-RTP offer
   refused with 488 before ringing; the 407 challenge on an outbound INVITE
   over UDP; an inbound WebRTC call from the console softphone over TLS,
-  with audio heard in both directions. No call has
-  been completed over UDP -- see "Next session with the phone" below.
+  with audio heard in both directions; an inbound **video** call from the
+  same softphone, auto-answered with the camera, picture and voice both
+  ways, on the release build. No call has been completed over UDP -- see
+  "Next session with the phone" below.
 
 **Verified by the harness**: registration over UDP, TCP, TLS and WS, plus bad
 password, unreachable server and clean unregister.
 
 **Never exercised at all**: iOS — never compiled, so every CallKit path is
-unverified. Video calls. DTMF, hold and transfer end to end.
+unverified. Outbound video calls, and camera switching. DTMF, hold and
+transfer end to end.
 
 ### Running things
 
@@ -54,13 +57,15 @@ LAN IP for a phone.
 - **The A85's wireless-debugging port rotates**, and the phone sleeps. Find it
   with `adb mdns services`; if `adb connect` times out, ping the phone first to
   wake it, then retry the same port.
-- **The app on the phone is a debug build** and fetches its JS from Metro on
-  the development machine via `localhost:8081`, so every adb session -- USB or
-  wireless -- needs `adb reverse tcp:8081 tcp:8081` first. Without it RN 0.87's
-  bridgeless mode does not show the red "Unable to load script" screen: it
-  tears the host down and the process exits about three seconds after launch.
-  `am start -W` reporting `Status: ok` while `ps` shows nothing is the
-  signature. A release build is needed for standalone use — see below.
+- **A debug build needs Metro.** The phone currently carries a release
+  build (2026-10-03), which does not. A debug build fetches its JS from
+  Metro on the development machine via `localhost:8081`, so every adb
+  session -- USB or wireless -- needs `adb reverse tcp:8081 tcp:8081` first,
+  and the forward is lost whenever the phone drops off adb and returns on a
+  new port. Without it RN 0.87's bridgeless mode does not show the red
+  "Unable to load script" screen: it tears the host down and the process
+  exits about three seconds after launch. `am start -W` reporting `Status:
+  ok` while `ps` shows nothing is the signature.
 - **Metro bundles are not warm.** First bundle after `npm start` takes about a
   minute; the phone shows "Bundling 99%" meanwhile.
 - **No Xcode or CocoaPods** on the development machine, hence no iOS build.
@@ -106,13 +111,17 @@ CA entered. The checks run against it on 2026-10-03 are in
       four digits and raises an AMI `UserEvent`, so the assertion can be that
       the *server* received them. `109` is music on hold, `110` a transfer
       target.
-- [ ] **Place and answer a video call**: remote view, local
-      picture-in-picture, camera switching.
+- [ ] **Place a video call**, and switch cameras during one. Answering one
+      is verified: remote view and local picture-in-picture both drew.
 - [ ] **Register against a commodity provider**, so the fixture is not the only
       thing the app has ever spoken to. 2talk answers `OPTIONS` with `200 OK`
       on UDP 5060.
-- [ ] **Release build**, so the app works without Metro. Check the signing
-      config first.
+- [ ] **A release build that could be distributed.** `assembleRelease`
+      works and runs on the A85 without Metro, but it is signed with the
+      debug keystore and reports version 1.0 (versionCode 1) from
+      `android/app/build.gradle`, not the version in `package.json`. Needs a
+      real signing key, kept out of the repository, and the version wired
+      through.
 - [ ] **CI.** Unit tests and lint need nothing; the fixture runs on GitHub
       Actions' Linux runners, where UDP also works properly.
 
