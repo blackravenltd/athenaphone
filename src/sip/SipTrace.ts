@@ -364,8 +364,12 @@ function summariseStats(report: {
       sent += Number(stat.packetsSent ?? 0);
     } else if (stat.type === 'inbound-rtp') {
       received += Number(stat.packetsReceived ?? 0);
-      level = Number(stat.audioLevel ?? 0);
-      energy = Number(stat.totalAudioEnergy ?? 0);
+      // A video call has a second inbound stream with no audio level; read
+      // last, it would report a call with sound as silent.
+      if ((stat.kind ?? stat.mediaType) !== 'video') {
+        level = Number(stat.audioLevel ?? 0);
+        energy = Number(stat.totalAudioEnergy ?? 0);
+      }
     } else if (stat.type === 'media-source' && stat.kind === 'audio') {
       sentEnergy = Number(stat.totalAudioEnergy ?? 0);
     }
