@@ -179,6 +179,10 @@ export interface Call {
   answeredAt?: number;
   endedAt?: number;
   endReason?: CallEndReason;
+  /** True when this side ended it: our hang-up, decline or cancel. */
+  endedLocally?: boolean;
+  /** The final SIP response that failed the call, e.g. 404 Not Found. */
+  endStatus?: { code: number; phrase: string };
   /** react-native-webrtc MediaStream ids, resolved to streams in the store. */
   localStreamId?: string;
   remoteStreamId?: string;

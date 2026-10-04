@@ -624,11 +624,11 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
     });
 
     session.on('ended', event => {
-      this.finish(managed, 'ended', this.reasonFor(event));
+      this.finish(managed, 'ended', event);
     });
 
     session.on('failed', event => {
-      this.finish(managed, 'failed', this.reasonFor(event));
+      this.finish(managed, 'failed', event);
     });
   }
 
@@ -695,7 +695,7 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
   private finish(
     managed: ManagedSession,
     state: Extract<CallState, 'ended' | 'failed'>,
-    reason: CallEndReason,
+    event: EndEvent,
   ): void {
     if (managed.call.state === 'ended' || managed.call.state === 'failed') {
       return;
@@ -709,7 +709,11 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
       endedAt: Date.now(),
       // A transfer sets endReason ahead of the BYE it causes; keep it.
       endReason:
-        managed.call.endReason === 'transferred' ? 'transferred' : reason,
+        managed.call.endReason === 'transferred'
+          ? 'transferred'
+          : this.reasonFor(event),
+      endedLocally: event.originator === 'local',
+      endStatus: finalResponse(event),
     };
     managed.call = ended;
     this.emit('call:ended', ended);
@@ -757,6 +761,23 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
  * answer is sent without waiting for the gathering-complete event.
  */
 const ICE_GATHERING_QUIET_MS = 500;
+
+/**
+ * The final response that failed a call, when the far end sent one. A local
+ * cancel or a BYE carries a request rather than a response, so has none.
+ */
+function finalResponse(
+  event: EndEvent,
+): { code: number; phrase: string } | undefined {
+  const message = event.message as
+    | { status_code?: number; reason_phrase?: string }
+    | undefined;
+  const code = message?.status_code;
+  if (event.originator !== 'remote' || !code || code < 300) {
+    return undefined;
+  }
+  return { code, phrase: message?.reason_phrase ?? '' };
+}
 
 /** The app runs a single UA; this is it. */
 export const sipClient = new SipClient();

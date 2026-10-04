@@ -13,6 +13,7 @@ import { useCallStore } from '../store/callStore';
 import { useHistoryStore } from '../store/historyStore';
 import { useSettingsStore } from '../store/settingsStore';
 import type { Call, SipAccount } from '../types';
+import { shouldHoldOutcome } from '../utils/callOutcome';
 import { AudioService } from './AudioService';
 import { CallKeepService } from './CallKeepService';
 import { CredentialStore } from './CredentialStore';
@@ -338,6 +339,14 @@ class CallControllerImpl {
     const store = useCallStore.getState();
     store.removeCall(call.id);
     void useHistoryStore.getState().recordCall(call);
+    // Keep the outcome up when it was not the user's doing and nothing else
+    // is on screen; a second leg still in progress takes precedence.
+    if (
+      shouldHoldOutcome(call) &&
+      useCallStore.getState().calls.length === 0
+    ) {
+      store.conclude(call);
+    }
 
     const wasMissed =
       call.direction === 'inbound' && call.answeredAt === undefined;

@@ -20,6 +20,7 @@ import { ActionButton } from '../components/ActionButton';
 import { Dialpad } from '../components/Dialpad';
 import {
   CameraFlipIcon,
+  CloseIcon,
   KeypadIcon,
   MicIcon,
   MicOffIcon,
@@ -51,6 +52,7 @@ import {
   type StatusTone,
 } from '../theme';
 import type { Call } from '../types';
+import { describeOutcome } from '../utils/callOutcome';
 import { displayTarget } from '../utils/sipUri';
 
 /** What the header says while the call is not yet up. */
@@ -88,6 +90,7 @@ export function CallScreen() {
     call ? state.remoteStreams[call.id] : undefined,
   );
   const dtmfBuffer = useCallStore(state => state.dtmfBuffer);
+  const concluded = useCallStore(state => state.concluded);
 
   const [showKeypad, setShowKeypad] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
@@ -151,7 +154,7 @@ export function CallScreen() {
   });
 
   if (!call) {
-    return null;
+    return concluded ? <ConcludedCall call={concluded} /> : null;
   }
 
   const isIncomingRinging =
@@ -413,6 +416,81 @@ export function CallScreen() {
   );
 }
 
+/**
+ * A call that has ended, held on screen until dismissed: who it was with,
+ * what happened in plain words, and the way to try again.
+ */
+function ConcludedCall({ call }: { call: Call }) {
+  const outcome = describeOutcome(call);
+  const name = call.remoteDisplayName ?? displayTarget(call.remoteUri);
+  const dismiss = useCallStore(state => state.dismissConcluded);
+
+  const { run: callAgain, busy: redialling } = useCriticalAction(async () => {
+    try {
+      await CallController.placeCall(call.remoteUri, call.hasVideo);
+    } catch (error) {
+      void Dialog.alert(
+        'Could not place call',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+    }
+  });
+
+  return (
+    <View style={styles.screen}>
+      <Watermark />
+      <SafeAreaView style={styles.content} edges={['top', 'bottom']}>
+        <View style={styles.header}>
+          <View style={styles.kindRow}>
+            <StatusDot tone={outcome.failed ? 'fault' : 'unknown'} />
+            <Text style={styles.kind}>
+              {call.direction === 'inbound' ? 'Incoming' : 'Outgoing'}
+              {call.hasVideo ? ' video' : ''}
+            </Text>
+          </View>
+
+          <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>
+            {name}
+          </Text>
+
+          {name !== displayTarget(call.remoteUri) ? (
+            <Text style={styles.uri}>{displayTarget(call.remoteUri)}</Text>
+          ) : null}
+
+          <Text
+            style={[styles.outcome, outcome.failed && styles.outcomeFailed]}
+            accessibilityLiveRegion="polite"
+          >
+            {outcome.headline}
+          </Text>
+          {outcome.detail ? (
+            <Text style={styles.status}>{outcome.detail}</Text>
+          ) : null}
+        </View>
+
+        <View style={styles.footer}>
+          <View style={styles.controls}>
+            <ActionButton
+              label="Close"
+              Icon={CloseIcon}
+              size={70}
+              onPress={dismiss}
+            />
+            <ActionButton
+              label="Call again"
+              Icon={call.hasVideo ? VideoIcon : PhoneIcon}
+              tone="accept"
+              size={70}
+              disabled={redialling}
+              onPress={callAgain}
+            />
+          </View>
+        </View>
+      </SafeAreaView>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { flex: 1, justifyContent: 'space-between' },
@@ -439,6 +517,13 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   otherCalls: { ...typography.caption, color: colors.textFaint },
+  outcome: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: space.md,
+  },
+  outcomeFailed: { color: colors.danger },
   pip: {
     position: 'absolute',
     top: space.xxl * 2,

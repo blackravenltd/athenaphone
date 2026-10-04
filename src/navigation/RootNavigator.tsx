@@ -26,7 +26,7 @@ import { DialerScreen } from '../screens/DialerScreen';
 import { HistoryScreen } from '../screens/HistoryScreen';
 import { AccountScreen } from '../screens/AccountScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
-import { selectHasActiveCall, useCallStore } from '../store/callStore';
+import { selectShowCallScreen, useCallStore } from '../store/callStore';
 import { colors } from '../theme';
 import { BottomNav } from './BottomNav';
 
@@ -111,7 +111,7 @@ function MainTabs() {
  * they will return to when it ends.
  */
 export function RootNavigator() {
-  const hasActiveCall = useCallStore(selectHasActiveCall);
+  const showCallScreen = useCallStore(selectShowCallScreen);
 
   return (
     <NavigationContainer theme={navigationTheme}>
@@ -129,7 +129,7 @@ export function RootNavigator() {
         />
       </Stack.Navigator>
 
-      {hasActiveCall ? (
+      {showCallScreen ? (
         <View style={StyleSheet.absoluteFill}>
           <CallScreen />
         </View>

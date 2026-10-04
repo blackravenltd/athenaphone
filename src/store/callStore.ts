@@ -20,6 +20,12 @@ interface CallState {
   remoteStreams: Record<string, MediaStream>;
   /** Digits collected by the in-call keypad, shown above the dialpad. */
   dtmfBuffer: string;
+  /**
+   * The last call to end, kept on the call screen with its outcome until the
+   * user dismisses it -- so a failure is shown rather than the screen just
+   * vanishing. Cleared by a new call.
+   */
+  concluded?: Call;
 
   upsertCall: (call: Call) => void;
   removeCall: (callId: string) => void;
@@ -30,6 +36,8 @@ interface CallState {
   focusCall: (callId: string | undefined) => void;
   appendDtmf: (digit: string) => void;
   clearDtmf: () => void;
+  conclude: (call: Call) => void;
+  dismissConcluded: () => void;
   reset: () => void;
 }
 
@@ -47,7 +55,11 @@ export const useCallStore = create<CallState>((set, get) => ({
         ? get().calls.map(entry => (entry.id === call.id ? call : entry))
         : [...get().calls, call];
 
-    set({ calls, focusedCallId: get().focusedCallId ?? call.id });
+    set({
+      calls,
+      focusedCallId: get().focusedCallId ?? call.id,
+      concluded: undefined,
+    });
   },
 
   removeCall(callId) {
@@ -92,6 +104,14 @@ export const useCallStore = create<CallState>((set, get) => ({
     set({ dtmfBuffer: '' });
   },
 
+  conclude(call) {
+    set({ concluded: call });
+  },
+
+  dismissConcluded() {
+    set({ concluded: undefined });
+  },
+
   reset() {
     set({
       calls: [],
@@ -99,6 +119,7 @@ export const useCallStore = create<CallState>((set, get) => ({
       localStreams: {},
       remoteStreams: {},
       dtmfBuffer: '',
+      concluded: undefined,
     });
   },
 }));
@@ -110,7 +131,12 @@ export function selectFocusedCall(state: CallState): Call | undefined {
   );
 }
 
-/** True when any leg is up, which is what the navigator watches. */
+/** True when any leg is up. */
 export function selectHasActiveCall(state: CallState): boolean {
   return state.calls.length > 0;
+}
+
+/** What the navigator watches: a call is up, or an outcome awaits dismissal. */
+export function selectShowCallScreen(state: CallState): boolean {
+  return state.calls.length > 0 || state.concluded !== undefined;
 }
