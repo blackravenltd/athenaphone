@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 
 import { PlusIcon } from '../components/Icons';
-import { PromptModal } from '../components/PromptModal';
+import { FormModal } from '../components/PromptModal';
 import { Row } from '../components/Row';
 import { Screen } from '../components/Screen';
 import { useCriticalAction } from '../hooks/useCriticalAction';
@@ -97,18 +97,9 @@ export function ContactsScreen() {
     [removeContact, toggleFavorite],
   );
 
-  /** Entered as "Name, 1001" so one prompt collects both fields. */
   const handleAdd = useCallback(
-    (value: string) => {
+    ([name, number]: string[]) => {
       setAdding(false);
-      const [name, number] = value.split(',').map(part => part.trim());
-      if (!name || !number) {
-        void Dialog.alert(
-          'Could not add contact',
-          'Enter a name and a number, separated by a comma.',
-        );
-        return;
-      }
       void addContact({
         displayName: name,
         numbers: [{ label: 'SIP', value: number }],
@@ -174,11 +165,13 @@ export function ContactsScreen() {
         )}
       />
 
-      <PromptModal
+      <FormModal
         visible={adding}
         title="New contact"
-        message="Enter a name and a number, separated by a comma."
-        placeholder="Alice, 1001"
+        fields={[
+          { label: 'Name', placeholder: 'Alice', autoCapitalize: 'words' },
+          { label: 'Number or SIP address', placeholder: '1001' },
+        ]}
         confirmLabel="Add"
         onConfirm={handleAdd}
         onCancel={() => setAdding(false)}

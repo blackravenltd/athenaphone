@@ -5,7 +5,7 @@
 // Licensed under the GNU GPLv3 - see <https://www.gnu.org/licenses/gpl-3.0.html>
 //
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -25,47 +25,59 @@ import {
   TOUCH_TARGET,
 } from '../theme';
 
-interface PromptModalProps {
+export interface PromptField {
+  /** Shown above the input; leave out for a lone field the title explains. */
+  label?: string;
+  placeholder?: string;
+  initialValue?: string;
+  keyboardType?: 'default' | 'phone-pad';
+  autoCapitalize?: 'none' | 'words';
+}
+
+interface FormModalProps {
   visible: boolean;
   title: string;
   message?: string;
-  placeholder?: string;
-  initialValue?: string;
+  fields: PromptField[];
   confirmLabel?: string;
-  keyboardType?: 'default' | 'phone-pad';
-  onConfirm: (value: string) => void;
+  /** Called with each field's trimmed value, in order, once all are filled. */
+  onConfirm: (values: string[]) => void;
   onCancel: () => void;
 }
 
 /**
- * A text prompt that works on both platforms.
+ * A modal form of one or more text fields that works on both platforms.
  *
- * `Alert.prompt` is iOS-only, so anything needing a value from the user --
- * blind transfer, adding a contact -- goes through this instead.
+ * `Alert.prompt` is iOS-only and takes one value, so anything needing input
+ * from the user -- blind transfer, adding a contact -- goes through this.
+ * Confirm stays disabled until every field has something in it.
  */
-export function PromptModal({
+export function FormModal({
   visible,
   title,
   message,
-  placeholder,
-  initialValue = '',
+  fields,
   confirmLabel = 'Confirm',
-  keyboardType = 'default',
   onConfirm,
   onCancel,
-}: PromptModalProps) {
-  const [value, setValue] = useState(initialValue);
+}: FormModalProps) {
+  const initial = fields.map(field => field.initialValue ?? '');
+  const [values, setValues] = useState(initial);
+  const inputs = useRef<(React.ComponentRef<typeof TextInput> | null)[]>([]);
 
   // Reset between openings so a previous entry does not linger.
+  const initialKey = initial.join('\u0000');
   useEffect(() => {
     if (visible) {
-      setValue(initialValue);
+      setValues(initialKey.split('\u0000'));
     }
-  }, [visible, initialValue]);
+  }, [visible, initialKey]);
+
+  const trimmed = values.map(value => value.trim());
+  const complete = trimmed.length === fields.length && trimmed.every(Boolean);
 
   const submit = () => {
-    const trimmed = value.trim();
-    if (trimmed) {
+    if (complete) {
       onConfirm(trimmed);
     }
   };
@@ -87,18 +99,40 @@ export function PromptModal({
           <Text style={typography.title}>{title}</Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}
 
-          <TextInput
-            value={value}
-            onChangeText={setValue}
-            placeholder={placeholder}
-            placeholderTextColor={colors.textFaint}
-            keyboardType={keyboardType}
-            autoFocus
-            autoCapitalize="none"
-            autoCorrect={false}
-            style={styles.input}
-            onSubmitEditing={submit}
-          />
+          {fields.map((field, index) => {
+            const last = index === fields.length - 1;
+            return (
+              <View key={index} style={styles.field}>
+                {field.label ? (
+                  <Text style={styles.label}>{field.label}</Text>
+                ) : null}
+                <TextInput
+                  ref={input => {
+                    inputs.current[index] = input;
+                  }}
+                  value={values[index] ?? ''}
+                  onChangeText={text =>
+                    setValues(current =>
+                      current.map((value, i) => (i === index ? text : value)),
+                    )
+                  }
+                  placeholder={field.placeholder}
+                  placeholderTextColor={colors.textFaint}
+                  keyboardType={field.keyboardType ?? 'default'}
+                  autoFocus={index === 0}
+                  autoCapitalize={field.autoCapitalize ?? 'none'}
+                  autoCorrect={false}
+                  returnKeyType={last ? 'done' : 'next'}
+                  blurOnSubmit={last}
+                  style={styles.input}
+                  onSubmitEditing={() =>
+                    last ? submit() : inputs.current[index + 1]?.focus()
+                  }
+                  accessibilityLabel={field.label ?? field.placeholder}
+                />
+              </View>
+            );
+          })}
 
           <View style={styles.actions}>
             <Pressable onPress={onCancel} style={styles.action}>
@@ -106,11 +140,11 @@ export function PromptModal({
             </Pressable>
             <Pressable
               onPress={submit}
-              disabled={!value.trim()}
+              disabled={!complete}
               style={[
                 styles.action,
                 styles.confirm,
-                !value.trim() && styles.disabled,
+                !complete && styles.disabled,
               ]}
             >
               <Text style={styles.confirmText}>{confirmLabel}</Text>
@@ -119,6 +153,35 @@ export function PromptModal({
         </View>
       </KeyboardAvoidingView>
     </Modal>
+  );
+}
+
+interface PromptModalProps {
+  visible: boolean;
+  title: string;
+  message?: string;
+  placeholder?: string;
+  initialValue?: string;
+  confirmLabel?: string;
+  keyboardType?: 'default' | 'phone-pad';
+  onConfirm: (value: string) => void;
+  onCancel: () => void;
+}
+
+/** A [FormModal] with a single field, for the common one-value prompt. */
+export function PromptModal({
+  placeholder,
+  initialValue,
+  keyboardType,
+  onConfirm,
+  ...rest
+}: PromptModalProps) {
+  return (
+    <FormModal
+      {...rest}
+      fields={[{ placeholder, initialValue, keyboardType }]}
+      onConfirm={([value]) => onConfirm(value)}
+    />
   );
 }
 
@@ -138,8 +201,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   message: { ...typography.caption, color: colors.textDim },
+  field: { gap: space.xs, marginTop: space.sm },
+  label: { ...typography.label, color: colors.textDim },
   input: {
-    marginTop: space.sm,
     paddingHorizontal: space.lg,
     paddingVertical: space.md,
     minHeight: TOUCH_TARGET,
