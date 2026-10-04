@@ -4,6 +4,41 @@ Newest first. One entry per milestone, recording what actually shipped.
 
 ---
 
+## Unreleased — 2026-10-04, the public node and the background
+
+Against `macnessa.athenasip.org`, a public AthenaSIP node behind NAT with
+rtpengine, reached from the phone over the internet. Video calls came from
+a headless Chromium driven by the AthenaSIP session, answered by Tom.
+
+**Verified:**
+
+- **Registration from the internet side** as `1003`, over TLS 5061 with the
+  test CA (the node's certificate names `macnessa.athenasip.org`) and later
+  over TCP.
+- **Inbound video through rtpengine.** Unbundled audio and video m-lines,
+  both answered `sendrecv`; ICE to rtpengine's public address via a
+  peer-reflexive candidate; Chromium's fake-camera pattern rendered and
+  moving; fake-audio tone received. The first of four runs ended early
+  because Tom hung up; the third never arrived (the node restart below).
+- **A release build on both A85s**, the second a fresh install.
+
+**Shipped from it:**
+
+- **"Remain in background", on by default.** An Android foreground service
+  (`RegistrationService`, `specialUse`) holds the process while an account
+  is online, with a low-importance notification naming the account and its
+  state and the owl as status-bar icon. Confirmed in the foreground with
+  the icon showing from the home screen. It was not enough on the A85: see
+  "Staying registered" in `ACTIVE.md`.
+- **A compact video-call toolbar.** In a video call the controls are one
+  small translucent bar, draggable and kept on screen, with name and timer
+  on its grip. Built and installed; not yet seen in a call.
+
+**Found and left in `ACTIVE.md`:** the Blackview memory cleaner killing the
+app through its foreground service; a dead TLS flow after a node restart
+going unnoticed, with no retry after the failed refresh; the whole app
+usable over the lock screen.
+
 ## 0.3.0 — 2026-10-03
 
 Interoperation with AthenaSIP: the UAT against the test fixture, then the

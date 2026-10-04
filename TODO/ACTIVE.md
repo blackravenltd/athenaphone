@@ -11,7 +11,8 @@ shipped.
 Current release **0.3.0**. `develop` is the working branch; `main` tracks
 releases.
 
-**Verified on hardware** (Blackview A85, Android 12), against three servers:
+**Verified on hardware** (two Blackview A85s, Android 12), against three
+AthenaSIP deployments and Asterisk:
 
 - Asterisk fixture: registration with digest auth and an outbound audio call
   to extension 101 with two-way Opus over DTLS-SRTP, call timer, Android
@@ -27,20 +28,25 @@ releases.
   over UDP; an inbound WebRTC call from the console softphone over TLS,
   with audio heard in both directions; an inbound **video** call from the
   same softphone, auto-answered with the camera, picture and voice both
-  ways, on the release build. No call has been completed over UDP -- see
-  "Next session with the phone" below.
+  ways, on the release build. No call has been completed over UDP.
+- Public AthenaSIP (`macnessa.athenasip.org`, behind NAT with rtpengine,
+  2026-10-04): registration as `1003` over TLS and TCP from the internet
+  side; inbound video calls from a headless browser through rtpengine,
+  unbundled audio and video, test pattern rendered and moving, audio
+  received.
 
 **Verified by the harness**: registration over UDP, TCP, TLS and WS, plus bad
 password, unreachable server and clean unregister.
 
 **Never exercised at all**: iOS — never compiled, so every CallKit path is
 unverified. Outbound video calls, and camera switching. DTMF, hold and
-transfer end to end.
+transfer end to end. Staying registered unattended for hours -- see below:
+on 2026-10-04 it did not.
 
 ### Running things
 
 ```bash
-npm run check                      # typecheck, lint, 58 unit tests. No Docker.
+npm run check                      # typecheck, lint, 62 unit tests. No Docker.
 cd test/asterisk && docker compose up -d
 npm run test:integration           # 7 tests against the fixture; skips if down
 ```
@@ -49,23 +55,34 @@ The fixture needs `./scripts/generate-certs.sh <address>` once, where the
 address is whatever the client dials — `127.0.0.1` for the harness, the host's
 LAN IP for a phone.
 
+A release build for the phones, about 2 minutes incremental and 15 clean:
+
+```bash
+cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
+adb -s <device> install -r app/build/outputs/apk/release/app-release.apk
+```
+
+Over wireless adb the 44 MB install takes several minutes.
+
 ### Environment traps, all previously paid for
 
 - **UDP does not survive Docker Desktop's NAT on macOS.** Registration works,
   then dies when the mapping ages out. Use TCP or TLS on macOS; `network_mode:
   host` works on Linux and in CI. See `test/asterisk/README.md`.
-- **The A85's wireless-debugging port rotates**, and the phone sleeps. Find it
-  with `adb mdns services`; if `adb connect` times out, ping the phone first to
-  wake it, then retry the same port.
-- **A debug build needs Metro.** The phone currently carries a release
-  build (2026-10-03), which does not. A debug build fetches its JS from
-  Metro on the development machine via `localhost:8081`, so every adb
-  session -- USB or wireless -- needs `adb reverse tcp:8081 tcp:8081` first,
-  and the forward is lost whenever the phone drops off adb and returns on a
-  new port. Without it RN 0.87's bridgeless mode does not show the red
-  "Unable to load script" screen: it tears the host down and the process
-  exits about three seconds after launch. `am start -W` reporting `Status:
-  ok` while `ps` shows nothing is the signature.
+- **The A85s drop off adb.** Wireless debugging's port rotates, and the
+  phone turns wireless debugging off when it sleeps for long or changes
+  network. Find the port with `adb mdns services`; if nothing is advertised,
+  someone has to wake the phone and turn wireless debugging back on. There
+  are two: serial `A85EEA0000005410` (Tom's, usually 10.35.1.164) and
+  `A85EEA0000005398` (usually 10.35.1.195, no account set up yet).
+- **Both phones run release builds**, which need nothing on the Mac. A debug
+  build fetches its JS from Metro via `localhost:8081`, so every adb session
+  needs `adb reverse tcp:8081 tcp:8081`, and the forward is lost whenever
+  the phone returns on a new port. Without it RN 0.87's bridgeless mode
+  exits about three seconds after launch with no error screen: `am start -W`
+  says `Status: ok` while `ps` shows nothing.
+- **Debug only: hot reloads** used to leave stale registered SIP clients.
+  Fixed (4fea45e), but a cold start after native changes is still needed.
 - **Metro bundles are not warm.** First bundle after `npm start` takes about a
   minute; the phone shows "Bundling 99%" meanwhile.
 - **No Xcode or CocoaPods** on the development machine, hence no iOS build.
@@ -74,51 +91,66 @@ LAN IP for a phone.
 
 ### Next session with the phone
 
-Needs the A85 in hand. The deployed AthenaSIP node is `10.35.1.20`: UDP and
-TCP 5060, TLS 5061, plain WS 8088. The phone has an account for it,
-"AthenaSIP corvus", subscriber `athenaphone`, currently on TLS with the test
-CA entered. The checks run against it on 2026-10-03 are in
+Needs an A85 awake with wireless debugging on. Tom's phone has two accounts:
+"AthenaSIP macnessa" (`1003@macnessa.athenasip.org`, active, on TCP at last
+look) and "AthenaSIP corvus" (`athenaphone@10.35.1.20`, TLS with the test
+CA). A browser video call to `1003` is run by the AthenaSIP session's
+headless-browser spec; Tom answers. The checks already run are in
 [`COMPLETED.md`](COMPLETED.md).
 
+- [ ] **See the video-call toolbar working.** Shipped unverified on
+      2026-10-04: during a video call the controls become one small,
+      translucent, draggable bar (`VideoCallToolbar`). Check it draws, its
+      buttons work, it can be dragged and stays on screen, and the keypad
+      still opens full width. The test call that was meant to show it found
+      the phone unregistered (next item).
 - [ ] **Complete a call over UDP.** The authentication half is verified:
-      INVITE (2325 bytes), 407, ACK, INVITE with `Proxy-Authorization`
-      (2599 bytes), 100 Trying. Both INVITEs fragmented and arrived on the
-      LAN. Nobody answered as `1001`, so it ended in 408; a 200 and audio
-      over UDP are still unseen. The callee has to be the admin console's
-      softphone, the only WebRTC peer there is.
-- [ ] **Check that TLS fails without the CA.** Registration over TLS with
-      the test CA's certificate in the account works; that it is refused
-      with the field empty has not been tried.
+      INVITE, 407, ACK, INVITE with `Proxy-Authorization`, 100 Trying, both
+      INVITEs fragmented and delivered on the LAN. Nobody answered, so it
+      ended in 408; a 200 and audio over UDP are still unseen.
+- [ ] **Check that TLS fails without the CA.** Only the success case has run.
 - [ ] **Find out why a ringing call was not auto-answered.** On 2026-10-03 a
       call that reached a stale, hot-reloaded copy of the app rang for 30
-      seconds with auto-answer on. Stale copies no longer occur, and every
-      call to a single instance that day was auto-answered, so this may
-      have been the stale copy alone -- unproven.
+      seconds with auto-answer on. Stale copies no longer occur and every
+      later call was auto-answered, so it may have been the stale copy alone
+      -- unproven.
 
-### The connection to the server
+### Staying registered
 
+The most important gap now: on 2026-10-04 the phone was unreachable for hours
+without anyone noticing.
+
+- [ ] **The Blackview memory cleaner kills the app, foreground service or
+      not.** `BvApplockService` ("ClearMemoryTask") killed AthenaPhone at
+      03:05 while its foreground service was up (`prcp FGS`,
+      `whitelistApp = 0`). The process was later running again under a new
+      PID with no registration: the REGISTER at 07:02 (Expires 600) was never
+      refreshed, and a call at 09:56 got 480. The phone was asleep and in
+      light doze at the time. Needed: prompt for exemption from battery
+      optimisation (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`); on vendors with
+      their own killer, send the user to its whitelist (on Blackview, lock
+      the app in recents); register again after a reboot; and find out what
+      restarted the process and why it did not register.
 - [ ] **Watch the connection and re-register when it goes.** Flagged by Tom,
       2026-10-04. When the macnessa node restarted at 01:30 the phone's TLS
       connection died without the close ever reaching it (a NAT on the path),
       so the app sat "registered" on a dead flow: the node held the binding
-      and answered 480 to calls. The refresh at 01:33 was written into the
-      dead connection, timed out, and left the account Offline with no
-      retry. The corvus restart the night before, on the LAN, was noticed in
-      two seconds, so a close that arrives is handled; one that does not, is
-      not. What the standards ask:
+      and answered 480. The refresh at 01:33 went into the dead connection,
+      timed out, and left the account Offline with no retry. A close that
+      arrives (corvus, on the LAN) is handled within two seconds. What the
+      standards ask:
       - RFC 5626 4.4: keep each flow alive -- double CRLF on TCP and TLS,
         STUN on UDP -- and treat a missing pong, or a close, as the flow
-        failing. `StreamTransport` already answers the server's pings; it
-        sends none of its own.
+        failing. `StreamTransport` answers the server's pings but sends none.
       - RFC 5626 4.5: on flow failure, re-register over a new flow with the
-        same `+sip.instance` and `reg-id` after a randomised backoff, so the
-        new binding replaces the old.
+        same `+sip.instance` and `reg-id` after a randomised backoff.
       - A refresh that fails should be retried with backoff, not left as
         Offline until someone restarts the app.
-      AthenaSIP answers double CRLF with CRLF on TCP and TLS, and STUN on UDP
-      5060, so there is a server to test against. Re-check this with the
-      foreground service in place: a backgrounded app may also lose its
-      connection to Android rather than the network.
+      AthenaSIP answers double CRLF with CRLF on TCP and TLS, and STUN on
+      UDP 5060, so there is a server to test against.
+- [ ] **Network change handling.** Re-register on Wi-Fi to cellular, via
+      `@react-native-community/netinfo` and `sipClient.refreshRegistration()`.
+      Part of the same job as the item above.
 
 ### Everything else
 
@@ -137,7 +169,9 @@ CA entered. The checks run against it on 2026-10-03 are in
       the *server* received them. `109` is music on hold, `110` a transfer
       target.
 - [ ] **Place a video call**, and switch cameras during one. Answering one
-      is verified: remote view and local picture-in-picture both drew.
+      is verified, on the LAN and through rtpengine from the internet.
+- [ ] **Set up the second A85** (`A85EEA0000005398`): it has the app and no
+      account.
 - [ ] **Register against a commodity provider**, so the fixture is not the only
       thing the app has ever spoken to. 2talk answers `OPTIONS` with `200 OK`
       on UDP 5060.
@@ -230,13 +264,6 @@ The gaps that will bite during any interoperability work.
 - [ ] **Push notifications.** Calls only arrive while the app is running and
       registered. PushKit on iOS, FCM high-priority data on Android, and a push
       gateway (RFC 8599 REGISTER parameters).
-- [ ] **Background registration on Android: battery optimisation.** A
-      foreground service now holds the process while an account is online,
-      with a notification saying so. Still to do: prompt for exemption from
-      battery optimisation, which some vendors apply even to foreground
-      services, and restart registration after a reboot.
-- [ ] **Network change handling.** Re-register on Wi-Fi to cellular, via
-      `@react-native-community/netinfo` and `sipClient.refreshRegistration()`.
 - [ ] **Attended transfer UI.** `CallController.attendedTransfer` and
       `startConsultationCall` exist but nothing drives them.
 - [ ] **Call waiting.** A second inbound call needs a swap, merge, or
@@ -248,6 +275,13 @@ The gaps that will bite during any interoperability work.
 ## Known defects
 
 Small, specific, and each independently fixable.
+
+- [ ] **The whole app works over the lock screen.** `MainActivity` has
+      `showWhenLocked` and `turnScreenOn`, meant for incoming calls, so
+      waking a locked phone can bring up AthenaPhone with its accounts,
+      settings and dialler usable without unlocking. Show the incoming-call
+      screen over the lock screen and nothing else -- set the flags only
+      while a call is ringing or up, or move the call UI to its own activity.
 
 - [ ] **The Bluetooth prompt interrupts the first call.** `requestForCall`
       asks for `BLUETOOTH_CONNECT` at dial time, so the first call a user
@@ -308,10 +342,9 @@ Small, specific, and each independently fixable.
 ## Design
 
 - [ ] **Replace the mark at small sizes.** The owl's feather strokes merge
-      below about 24pt; a simplified silhouette is needed for the top bar at 1x
-      and for the Android notification icon.
-- [ ] **App icons from the mark** are done for Android and iOS, but the
-      notification icon is still the default.
+      below about 24pt. The notification icon (`ic_stat_athenaphone`) is the
+      full mark as a white silhouette and reads as a blob; it and the top bar
+      at 1x want a simplified silhouette.
 - [ ] **Light theme**, if it turns out to be wanted. Deliberately omitted —
       the shared AthenaSIP palette is dark-only.
 - [ ] **Landscape and tablet layouts.**
@@ -323,8 +356,10 @@ Recorded so they are not "fixed" by mistake.
 - **Dark only.** The shared palette has no light variant.
 - **The accent marks position, never approval.** Green, amber and red are
   reserved for state. Nothing decorative may use them. See the README.
-- **Call controls stay conventional** — answer green, hang up red, fixed
-  positions — because they are telephony affordances, not branding.
+- **Call controls stay conventional** — answer green, hang up red — because
+  they are telephony affordances, not branding. Positions are fixed except
+  in a video call, where Tom asked (2026-10-04) for the controls to become
+  one small bar that can be dragged off the picture.
 - **`StreamTransport` reads a missing `Content-Length` as an empty body.** RFC
   3261 requires it on a stream transport, so a peer omitting it is broken, but
   being lenient beats desynchronising the stream.
