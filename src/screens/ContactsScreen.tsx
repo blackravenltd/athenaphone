@@ -37,9 +37,11 @@ export function ContactsScreen() {
   const addContact = useContactsStore(state => state.addContact);
   const removeContact = useContactsStore(state => state.removeContact);
   const toggleFavorite = useContactsStore(state => state.toggleFavorite);
+  const updateContact = useContactsStore(state => state.updateContact);
 
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<Contact | undefined>(undefined);
 
   const sections = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -82,6 +84,7 @@ export function ContactsScreen() {
       void Dialog.actions({
         title: contact.displayName,
         actions: [
+          { label: 'Edit contact', onPress: () => setEditing(contact) },
           {
             label: contact.favorite ? 'Remove favourite' : 'Add favourite',
             onPress: () => void toggleFavorite(contact.id),
@@ -95,6 +98,23 @@ export function ContactsScreen() {
       });
     },
     [removeContact, toggleFavorite],
+  );
+
+  /** Name and the first number; any further numbers are left as they are. */
+  const handleEdit = useCallback(
+    ([name, number]: string[]) => {
+      const contact = editing;
+      setEditing(undefined);
+      if (!contact) {
+        return;
+      }
+      const [first, ...rest] = contact.numbers;
+      void updateContact(contact.id, {
+        displayName: name,
+        numbers: [{ label: first?.label ?? 'SIP', value: number }, ...rest],
+      });
+    },
+    [editing, updateContact],
   );
 
   const handleAdd = useCallback(
@@ -163,6 +183,25 @@ export function ContactsScreen() {
             onLongPress={() => contactActions(item)}
           />
         )}
+      />
+
+      <FormModal
+        visible={editing !== undefined}
+        title="Edit contact"
+        fields={[
+          {
+            label: 'Name',
+            initialValue: editing?.displayName,
+            autoCapitalize: 'words',
+          },
+          {
+            label: 'Number or SIP address',
+            initialValue: editing?.numbers[0]?.value,
+          },
+        ]}
+        confirmLabel="Save"
+        onConfirm={handleEdit}
+        onCancel={() => setEditing(undefined)}
       />
 
       <FormModal
