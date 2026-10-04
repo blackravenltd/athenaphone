@@ -7,7 +7,12 @@
 
 import React, { useCallback, useState } from 'react';
 import {
-  Pressable, StyleSheet, Text, View } from 'react-native';
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type LayoutRectangle,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RTCView } from 'react-native-webrtc';
 
@@ -28,6 +33,10 @@ import {
 import { Watermark } from '../components/Logo';
 import { PromptModal } from '../components/PromptModal';
 import { StatusDot } from '../components/StatusDot';
+import {
+  VideoCallToolbar,
+  type ToolbarAction,
+} from '../components/VideoCallToolbar';
 import { useCallTimer } from '../hooks/useCallTimer';
 import { useCriticalAction } from '../hooks/useCriticalAction';
 import { CallController } from '../services/CallController';
@@ -82,6 +91,7 @@ export function CallScreen() {
 
   const [showKeypad, setShowKeypad] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
+  const [area, setArea] = useState<LayoutRectangle | null>(null);
   const timer = useCallTimer(call);
 
   const sendDtmf = useCallback(
@@ -92,8 +102,6 @@ export function CallScreen() {
     },
     [call],
   );
-
-
 
   const callId = call?.id;
 
@@ -155,6 +163,50 @@ export function CallScreen() {
 
   const name = call.remoteDisplayName ?? displayTarget(call.remoteUri);
   const showVideo = call.hasVideo && Boolean(remoteStream);
+  // With a picture up, the controls shrink to a bar that can be dragged off
+  // whatever it would cover. The keypad still takes the full footer.
+  const compact = showVideo && !isIncomingRinging && !showKeypad;
+
+  const toolbarActions: ToolbarAction[] = [
+    {
+      label: call.muted ? 'Unmute' : 'Mute',
+      Icon: call.muted ? MicOffIcon : MicIcon,
+      tone: call.muted ? 'active' : 'neutral',
+      onPress: () => CallController.setMuted(call.id, !call.muted),
+    },
+    {
+      label: 'Speaker',
+      Icon: SpeakerIcon,
+      tone: call.speakerOn ? 'active' : 'neutral',
+      onPress: () => CallController.setSpeaker(call.id, !call.speakerOn),
+    },
+    {
+      label: 'Flip camera',
+      Icon: CameraFlipIcon,
+      onPress: () => CallController.switchCamera(call.id),
+    },
+    { label: 'Keypad', Icon: KeypadIcon, onPress: () => setShowKeypad(true) },
+    {
+      label: 'Hold',
+      Icon: PauseIcon,
+      tone: call.state === 'held' ? 'active' : 'neutral',
+      disabled: !isConnected,
+      onPress: () => CallController.setHold(call.id, call.state !== 'held'),
+    },
+    {
+      label: 'Transfer',
+      Icon: TransferIcon,
+      disabled: !isConnected,
+      onPress: () => setShowTransfer(true),
+    },
+    {
+      label: 'End call',
+      Icon: PhoneDownIcon,
+      tone: 'reject',
+      disabled: hangingUp,
+      onPress: hangup,
+    },
+  ];
 
   return (
     <View style={styles.screen}>
@@ -171,32 +223,44 @@ export function CallScreen() {
         <Watermark />
       )}
 
-      <SafeAreaView style={styles.content} edges={['top', 'bottom']}>
-        <View style={styles.header}>
-          <View style={styles.kindRow}>
-            <StatusDot tone={STATE_TONE[call.state]} />
-            <Text style={styles.kind}>
-              {call.direction === 'inbound' ? 'Incoming' : 'Outgoing'}
-              {call.hasVideo ? ' video' : ''}
+      <SafeAreaView
+        style={styles.content}
+        edges={['top', 'bottom']}
+        onLayout={event => {
+          const { width, height } = event.nativeEvent.layout;
+          setArea({ x: 0, y: 0, width, height });
+        }}
+      >
+        {compact ? null : (
+          <View style={styles.header}>
+            <View style={styles.kindRow}>
+              <StatusDot tone={STATE_TONE[call.state]} />
+              <Text style={styles.kind}>
+                {call.direction === 'inbound' ? 'Incoming' : 'Outgoing'}
+                {call.hasVideo ? ' video' : ''}
+              </Text>
+            </View>
+
+            <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>
+              {name}
             </Text>
+
+            {name !== displayTarget(call.remoteUri) ? (
+              <Text style={styles.uri}>{displayTarget(call.remoteUri)}</Text>
+            ) : null}
+
+            <Text style={styles.status}>
+              {timer || STATE_LABEL[call.state]}
+            </Text>
+
+            {calls.length > 1 ? (
+              <Text style={styles.otherCalls}>
+                {calls.length - 1} other call{calls.length > 2 ? 's' : ''} on
+                hold
+              </Text>
+            ) : null}
           </View>
-
-          <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>
-            {name}
-          </Text>
-
-          {name !== displayTarget(call.remoteUri) ? (
-            <Text style={styles.uri}>{displayTarget(call.remoteUri)}</Text>
-          ) : null}
-
-          <Text style={styles.status}>{timer || STATE_LABEL[call.state]}</Text>
-
-          {calls.length > 1 ? (
-            <Text style={styles.otherCalls}>
-              {calls.length - 1} other call{calls.length > 2 ? 's' : ''} on hold
-            </Text>
-          ) : null}
-        </View>
+        )}
 
         {call.hasVideo && localStream ? (
           <View style={styles.pip}>
@@ -210,8 +274,19 @@ export function CallScreen() {
           </View>
         ) : null}
 
-        <View style={styles.footer}>
-          {showKeypad ? (
+        {compact ? (
+          <View style={styles.toolbarSlot} pointerEvents="box-none">
+            <VideoCallToolbar
+              title={name}
+              status={timer || STATE_LABEL[call.state]}
+              actions={toolbarActions}
+              bounds={area}
+            />
+          </View>
+        ) : null}
+
+        <View style={[styles.footer, compact && styles.footerCompact]}>
+          {compact ? null : showKeypad ? (
             <View style={styles.keypad}>
               <Text style={styles.dtmf} numberOfLines={1}>
                 {dtmfBuffer || ' '}
@@ -320,7 +395,7 @@ export function CallScreen() {
             onCancel={() => setShowTransfer(false)}
           />
 
-          {isIncomingRinging ? null : (
+          {isIncomingRinging || compact ? null : (
             <View style={styles.hangupRow}>
               <ActionButton
                 label="End call"
@@ -378,6 +453,18 @@ const styles = StyleSheet.create({
   },
   pipVideo: { flex: 1 },
   footer: { gap: space.xl, paddingBottom: space.lg },
+  footerCompact: { paddingBottom: 0 },
+  // Fills the content area so the toolbar's own layout is in the same
+  // coordinates as the drag bounds; passes touches through where empty.
+  toolbarSlot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    justifyContent: 'flex-end',
+    paddingBottom: space.lg,
+  },
   controls: {
     flexDirection: 'row',
     justifyContent: 'center',
