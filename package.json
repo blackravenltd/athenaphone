@@ -8,13 +8,14 @@
     "lint": "eslint . --ext .ts,.tsx",
     "start": "react-native start",
     "test": "jest",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p test/integration",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p test/integration && tsc --noEmit -p test/athenasip",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx}\" App.tsx index.js",
     "test:watch": "jest --watch",
     "check": "npm run typecheck && npm run lint && npm test",
     "postinstall": "patch-package",
-    "test:integration": "jest --config jest.integration.config.js --runInBand"
+    "test:integration": "jest --config jest.integration.config.js --runInBand",
+    "test:athenasip": "scripts/test-athenasip.sh"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^3.1.1",
