@@ -36,7 +36,13 @@ AthenaSIP deployments and Asterisk:
   received.
 
 **Verified by the harness**: registration over UDP, TCP, TLS and WS, plus bad
-password, unreachable server and clean unregister.
+password, unreachable server and clean unregister, against Asterisk.
+Against a live AthenaSIP node, in AthenaSIP's combined suite
+(`npm run test:athenasip`, all passing in both media phases on 2026-10-05):
+registration over UDP, TCP, TLS, WS and WSS, TLS refused when the node is
+not signed by the trusted CA, the RFC 5626 outbound parameters, 401 for a
+bad password, a clean unregister, the node's 555 for unknown RFC 8599 push
+parameters, and re-registration after the node restarts.
 
 **Never exercised at all**: iOS — never compiled, so every CallKit path is
 unverified. Outbound video calls, and camera switching. DTMF, hold and
@@ -108,7 +114,6 @@ headless-browser spec; Tom answers. The checks already run are in
       INVITE, 407, ACK, INVITE with `Proxy-Authorization`, 100 Trying, both
       INVITEs fragmented and delivered on the LAN. Nobody answered, so it
       ended in 408; a 200 and audio over UDP are still unseen.
-- [ ] **Check that TLS fails without the CA.** Only the success case has run.
 - [ ] **Find out why a ringing call was not auto-answered.** On 2026-10-03 a
       call that reached a stale, hot-reloaded copy of the app rang for 30
       seconds with auto-answer on. Stale copies no longer occur and every
@@ -157,10 +162,12 @@ without anyone noticing.
 - [ ] **iOS build.** Never compiled. Needs Xcode and CocoaPods, then
       `pod install`. Every CallKit path is unverified, and that is the half
       most likely to differ from Android.
-- [ ] **Call signalling tests in the harness**: INVITE/180/200/ACK/BYE, CANCEL
-      races, and the 486/503/603 outcomes that map to `CallEndReason`. Needs a
-      WebRTC stack under Node for the SDP — `werift` is the candidate. This
-      unlocks most of what is currently only checkable by hand.
+- [ ] **Call tests in the harness**: INVITE/180/200/ACK/BYE, CANCEL races,
+      hold and resume, DTMF, and the 486/503/603 outcomes that map to
+      `CallEndReason`. Needs a WebRTC stack under Node for the SDP -- `werift`
+      is the candidate, a new dev dependency awaiting Tom's word. Listed as
+      todo in `test/athenasip`, where two UAs (1003, 1004) would call each
+      other through the node; the same stack serves the Asterisk harness.
 - [ ] **Media assertions.** Extension `101` plays a precise 1004 Hz tone:
       decode the RTP and assert the FFT peak, so a test cannot pass on silence
       or a half-negotiated stream. Same `werift` dependency.
