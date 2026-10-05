@@ -7,6 +7,7 @@
 
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
+import tls from 'node:tls';
 import path from 'node:path';
 
 import { SipClient } from '../../src/sip/SipClient';
@@ -118,14 +119,15 @@ describe('registration against AthenaSIP', () => {
   );
 
   maybeIt(
-    'refuses tls when the node cannot be verified',
+    'refuses tls when the node is not signed by the trusted CA',
     async () => {
       const client = new SipClient();
       clients.push(client);
       const registration = watch(client);
-      // The system trust store, which does not hold the test CA.
+      // A real root that did not sign the node's certificate. Not the
+      // system store: the script adds the test CA to that for WSS.
       await client.start(
-        { ...nodeAccount('tls'), tlsCaPem: undefined },
+        { ...nodeAccount('tls'), tlsCaPem: tls.rootCertificates[0] },
         PASSWORD,
       );
       await waitFor(
@@ -195,7 +197,11 @@ describe('registration against AthenaSIP', () => {
       const ua = (
         client as unknown as {
           ua: {
-            contact: { uri: { setParam(name: string, value: string): void } };
+            contact: {
+              uri: { setParam(name: string, value: string): void };
+              toString(): string;
+            };
+            registrator(): { _contact: string };
             register(): void;
           };
         }
@@ -203,11 +209,25 @@ describe('registration against AthenaSIP', () => {
       ua.contact.uri.setParam('pn-provider', 'athenaphone-test');
       ua.contact.uri.setParam('pn-prid', 'suite-device-token');
       ua.contact.uri.setParam('pn-param', 'suite.athenaphone');
+      // The registrator renders its Contact once, at construction, so the
+      // URI change has to be carried into that copy by hand.
+      const registrator = ua.registrator();
+      registrator._contact = registrator._contact.replace(
+        /^<[^>]*>/,
+        ua.contact.toString(),
+      );
       ua.register();
-      await waitFor(() => statuses.reached('failed'), '555 response', 15_000);
+      // Checked before waiting, so a REGISTER without the parameters fails
+      // here rather than as a timeout.
+      await waitFor(
+        () => /pn-provider=/.test(lastRegisterSent() ?? ''),
+        'a REGISTER carrying the push parameters',
+        5_000,
+      );
       expect(lastRegisterSent()).toMatch(
         /^Contact: <sip:[^>]*;pn-provider=athenaphone-test[^>]*>/im,
       );
+      await waitFor(() => statuses.reached('failed'), '555 response', 15_000);
       const failure = statuses.seen.find(s => s.state === 'failed');
       expect(failure?.statusCode).toBe(555);
     },
