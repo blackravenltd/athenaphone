@@ -5,6 +5,7 @@
 // Licensed under the GNU GPLv3 - see <https://www.gnu.org/licenses/gpl-3.0.html>
 //
 
+import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -29,6 +30,7 @@ import { nodeAccount, nodeCaPem, PASSWORD, PORTS, waitFor } from './fixture';
 const up = process.env.ATHENA_NODE_UP === '1';
 const maybeIt = up ? it : it.skip;
 const maybeEach = up ? it.each : it.skip.each;
+const RESTART_CMD = process.env.ATHENA_SUITE_RESTART_CMD;
 
 beforeAll(() => {
   setSocketFactories(nodeSockets);
@@ -181,35 +183,59 @@ describe('registration against AthenaSIP', () => {
     30_000,
   );
 
-  // A negative test of the node more than of the phone: the app does not
-  // implement push yet, so the parameters are put on the Contact here.
+  // A test of the node's handling, not the phone's: the app does not
+  // implement push, so the RFC 8599 parameters are put on the Contact URI
+  // here. They belong inside the brackets (RFC 8599 4.1.1); as Contact header
+  // parameters a registrar rightly ignores them.
   maybeIt(
-    'gets 555 for RFC 8599 push parameters naming a service the node lacks',
+    'node answers 555 to RFC 8599 push parameters for a service it lacks',
     async () => {
       const client = await registered('tcp');
       const statuses = watch(client);
       const ua = (
         client as unknown as {
           ua: {
-            registrator(): {
-              setExtraContactParams(p: Record<string, string>): void;
-            };
+            contact: { uri: { setParam(name: string, value: string): void } };
             register(): void;
           };
         }
       ).ua;
-      ua.registrator().setExtraContactParams({
-        'pn-provider': 'athenaphone-test',
-        'pn-prid': 'suite-device-token',
-        'pn-param': 'suite.athenaphone',
-      });
+      ua.contact.uri.setParam('pn-provider', 'athenaphone-test');
+      ua.contact.uri.setParam('pn-prid', 'suite-device-token');
+      ua.contact.uri.setParam('pn-param', 'suite.athenaphone');
       ua.register();
       await waitFor(() => statuses.reached('failed'), '555 response', 15_000);
-      expect(lastRegisterSent()).toMatch(/pn-provider=athenaphone-test/);
+      expect(lastRegisterSent()).toMatch(
+        /^Contact: <sip:[^>]*;pn-provider=athenaphone-test[^>]*>/im,
+      );
       const failure = statuses.seen.find(s => s.state === 'failed');
       expect(failure?.statusCode).toBe(555);
     },
     30_000,
+  );
+
+  // The runner exports the restart command; it is the one container action
+  // this suite may take. A restart over TCP closes the connection, which the
+  // app sees, so it must come back registered on its own.
+  (up && RESTART_CMD ? it : it.skip)(
+    're-registers after the node restarts',
+    async () => {
+      const client = await registered('tcp');
+      const statuses = watch(client);
+      execSync(RESTART_CMD!, { stdio: 'ignore', timeout: 60_000 });
+      await waitFor(
+        () =>
+          statuses.seen.some(
+            (status, index) =>
+              status.state === 'registered' &&
+              statuses.seen.slice(0, index).some(s => s.state !== 'registered'),
+          ),
+        're-registration after restart',
+        90_000,
+      );
+      expect(client.registrationStatus.state).toBe('registered');
+    },
+    150_000,
   );
 });
 
@@ -224,7 +250,6 @@ describe('calls through AthenaSIP', () => {
   it.todo('DTMF received by the far UA (needs a Node WebRTC stack)');
   it.todo('BYE from each end (needs a Node WebRTC stack)');
   it.todo('CANCEL before answer (needs a Node WebRTC stack)');
-  it.todo('re-registration after the node restarts (the runner restarts it)');
 });
 
 describe('on the A85 (ATHENA_SUITE_DEVICE=1)', () => {

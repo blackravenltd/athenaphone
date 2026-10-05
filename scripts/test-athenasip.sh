@@ -19,6 +19,13 @@ export ATHENA_SUITE_RESULTS="$results"
 out="$results/phone"
 mkdir -p "$out"
 
+# WSS goes through Node's global WebSocket, which takes no CA option but
+# reads extra roots from here at startup.
+ca="../athenasip/tls/ca/snakeca.crt"
+if [[ -f "$ca" ]]; then
+  export NODE_EXTRA_CA_CERTS="$(cd "$(dirname "$ca")" && pwd)/$(basename "$ca")"
+fi
+
 npx jest --ci --silent --json --outputFile="$out/unit.json" \
   >"$out/unit.log" 2>&1
 npx jest --ci --config jest.athenasip.config.js --runInBand --json \

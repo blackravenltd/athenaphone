@@ -62,10 +62,20 @@ export function nodeCaPem(): string | undefined {
   return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : undefined;
 }
 
+/**
+ * The subscribers this suite registers as. The console's browser spec uses
+ * the first two, so the phone takes the third and fourth to avoid replacing
+ * its registrations.
+ */
+export const OWN_SUBSCRIBERS = [
+  SUBSCRIBERS[2] ?? '1003',
+  SUBSCRIBERS[3] ?? '1004',
+];
+
 /** An account for `username` on the node over `transport`. */
 export function nodeAccount(
   transport: SipTransport,
-  username = SUBSCRIBERS[0],
+  username = OWN_SUBSCRIBERS[0],
 ): SipAccount {
   const port = transport === 'wss' ? PORTS.wss ?? 0 : PORTS[transport as 'udp'];
   return {
