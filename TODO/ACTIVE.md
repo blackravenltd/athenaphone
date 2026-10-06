@@ -44,7 +44,7 @@ not signed by the trusted CA, the RFC 5626 outbound parameters, 401 for a
 bad password, a clean unregister, the node's 555 for unknown RFC 8599 push
 parameters, and re-registration after the node restarts.
 
-**Never exercised at all**: iOS — never compiled, so every CallKit path is
+**Never exercised at all**: iOS, never compiled, so every CallKit path is
 unverified. Outbound video calls, and camera switching. DTMF, hold and
 transfer end to end. Staying registered unattended for hours -- see below:
 on 2026-10-04 it did not.
@@ -58,7 +58,7 @@ npm run test:integration           # 7 tests against the fixture; skips if down
 ```
 
 The fixture needs `./scripts/generate-certs.sh <address>` once, where the
-address is whatever the client dials — `127.0.0.1` for the harness, the host's
+address is whatever the client dials: `127.0.0.1` for the harness, the host's
 LAN IP for a phone.
 
 A release build for the phones, about 2 minutes incremental and 15 clean:
@@ -93,7 +93,7 @@ Over wireless adb the 44 MB install takes several minutes.
   minute; the phone shows "Bundling 99%" meanwhile.
 - **No Xcode or CocoaPods** on the development machine, hence no iOS build.
 
-## Now — the gaps that block trusting it
+## Now: the gaps that block trusting it
 
 ### Next session with the phone
 
@@ -229,7 +229,7 @@ The gaps that will bite during any interoperability work.
 - [ ] **NAT traversal for the non-WebSocket transports.** Beyond the Contact
       bug above: needs a STUN-discovered Contact, or connection reuse
       (RFC 5626). Servers without `rewrite_contact` cannot reach us at all.
-- [ ] **Plain-RTP interop.** Media is always WebRTC — DTLS-SRTP with ICE —
+- [ ] **Plain-RTP interop.** Media is always WebRTC (DTLS-SRTP with ICE),
       even over UDP signalling, so a server offering plain RTP/AVP registers
       fine and then fails to establish media. Fixture endpoint `1003` is the
       control case. Decide: carry a plain-RTP path, or document the
@@ -257,7 +257,7 @@ The gaps that will bite during any interoperability work.
       commit 58dfb65) reads WebRTC from a `UDP/TLS/RTP/SAVPF` m-line alone, so
       the reply needs the m-line, a `c=` line and our codecs -- no
       fingerprint, no ICE attributes, no peer connection per probe.
-- [ ] **Digest authentication edge cases** — `qop=auth-int`, stale nonces,
+- [ ] **Digest authentication edge cases**: `qop=auth-int`, stale nonces,
       re-authentication mid-dialog, against more than one server.
 - [ ] **Codec selection.** Opus/G.722/PCMU ordering and a video bandwidth cap,
       via SDP munging. Some servers offer only G.711.
@@ -311,9 +311,9 @@ Small, specific, and each independently fixable.
 
 ## Commercial-phone parity
 
-- [ ] **BLF / presence** — SUBSCRIBE/NOTIFY for `dialog` and `presence`, with a
+- [ ] **BLF / presence**: SUBSCRIBE/NOTIFY for `dialog` and `presence`, with a
       busy-lamp-field speed dial page.
-- [ ] **Message waiting indication** — SUBSCRIBE to `message-summary`.
+- [ ] **Message waiting indication**: SUBSCRIBE to `message-summary`.
 - [ ] **Device contacts**, merged with the local list. Permission is already
       requested.
 - [ ] **Multiple simultaneous registrations.** The store holds many accounts
@@ -327,10 +327,10 @@ Small, specific, and each independently fixable.
 
 ## Quality
 
-- [ ] **Tests for `SipClient`** — mock the JsSIP `UA` and cover the session
+- [ ] **Tests for `SipClient`**: mock the JsSIP `UA` and cover the session
       state machine, particularly `reasonFor()` and the `finish()` guard
       against double-termination.
-- [ ] **Tests for `CallController`** — the CallKeep and audio interaction is
+- [ ] **Tests for `CallController`**: the CallKeep and audio interaction is
       the most fragile part of the app and has no coverage.
 - [ ] **Error surfacing.** `SipClient` emits an `error` event nothing listens
       to. Wire it to the dialog host or a diagnostics screen.
@@ -351,7 +351,7 @@ Small, specific, and each independently fixable.
       below about 24pt. The notification icon (`ic_stat_athenaphone`) is the
       full mark as a white silhouette and reads as a blob; it and the top bar
       at 1x want a simplified silhouette.
-- [ ] **Light theme**, if it turns out to be wanted. Deliberately omitted —
+- [ ] **Light theme**, if it turns out to be wanted. Deliberately omitted:
       the shared AthenaSIP palette is dark-only.
 - [ ] **Landscape and tablet layouts.**
 
@@ -362,7 +362,7 @@ Recorded so they are not "fixed" by mistake.
 - **Dark only.** The shared palette has no light variant.
 - **The accent marks position, never approval.** Green, amber and red are
   reserved for state. Nothing decorative may use them. See the README.
-- **Call controls stay conventional** — answer green, hang up red — because
+- **Call controls stay conventional** (answer green, hang up red) because
   they are telephony affordances, not branding. Positions are fixed except
   in a video call, where Tom asked (2026-10-04) for the controls to become
   one small bar that can be dragged off the picture.

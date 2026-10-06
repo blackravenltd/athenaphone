@@ -1,7 +1,7 @@
 # Integration harness
 
-Runs the real `SipClient` — the shipping JsSIP configuration, the shipping
-transports, the shipping framing — against the Asterisk fixture, from Node.
+Runs the real `SipClient` (the shipping JsSIP configuration, the shipping
+transports, the shipping framing) against the Asterisk fixture, from Node.
 **No device, no emulator, no Metro.**
 
 ```bash
@@ -23,8 +23,8 @@ implementations, and this harness installs Node's `dgram`, `net` and `tls`.
 Everything above the socket is the code that ships. Only the bottom inch is
 swapped, and it is swapped for something equally real.
 
-React Native's own modules stay mocked by `jest.setup.js` — the app's code
-imports them — but no SIP traffic goes through those mocks.
+React Native's own modules stay mocked by `jest.setup.js`, because the app's code
+imports them, but no SIP traffic goes through those mocks.
 
 ## What it covers
 
@@ -50,7 +50,7 @@ have been caught here in seconds.
 
 **No media.** `react-native-webrtc` is mocked, so this covers signalling only:
 registration, authentication, transports and framing. Calls carrying audio
-need a WebRTC stack under Node — `werift` is the candidate — and belong with
+need a WebRTC stack under Node (`werift` is the candidate) and belong with
 the Milliwatt tone assertion described in [`../asterisk/README.md`](../asterisk/README.md).
 
 **WSS is not covered.** JsSIP's WebSocket transport uses the global
@@ -59,5 +59,5 @@ fixture's self-signed certificate the way our own TLS transport can. Run with
 `NODE_EXTRA_CA_CERTS=test/asterisk/tls/ca.crt` to cover it.
 
 **TLS needs the fixture's CA.** Run `test/asterisk/scripts/generate-certs.sh`
-with the address the harness dials — `127.0.0.1` by default, or whatever
+with the address the harness dials: `127.0.0.1` by default, or whatever
 `ATHENA_FIXTURE_HOST` is set to.

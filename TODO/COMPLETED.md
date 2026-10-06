@@ -4,7 +4,7 @@ Newest first. One entry per milestone, recording what actually shipped.
 
 ---
 
-## Unreleased — 2026-10-04, the public node and the background
+## Unreleased, 2026-10-04, the public node and the background
 
 Against `macnessa.athenasip.org`, a public AthenaSIP node behind NAT with
 rtpengine, reached from the phone over the internet. Video calls came from
@@ -39,7 +39,7 @@ app through its foreground service; a dead TLS flow after a node restart
 going unnoticed, with no retry after the failed refresh; the whole app
 usable over the lock screen.
 
-## 0.3.0 — 2026-10-03
+## 0.3.0, 2026-10-03
 
 Interoperation with AthenaSIP: the UAT against the test fixture, then the
 deployed node, ending with a video call on a release build.
@@ -154,7 +154,7 @@ included. Four reproductions with no working case to compare against showed
 that something was broken, not what; one browser-to-browser control with a
 real ring time did. Environment traps met on the way are in `ACTIVE.md`.
 
-## 0.2.1 — 2026-09-18
+## 0.2.1, 2026-09-18
 
 Adopted the shared AthenaSIP palette from athenasip-admin, along with the rule
 that governs it: **the accent marks position, never approval.**
@@ -190,7 +190,7 @@ trusting the numbers:
   unselected transport labels, the remote party's URI mid-call and the
   inactive tab labels. Lifted to `#8a8a93`.
 
-## 0.2.0 — 2026-09-17
+## 0.2.0, 2026-09-17
 
 **The first release that has actually made a call.**
 
@@ -199,14 +199,14 @@ TLS and WebSocket, and an audio call carrying two-way Opus over DTLS-SRTP --
 1604 packets sent, 1613 received in 32 seconds -- with the call timer, the
 Android system call UI, hang-up and call history all behaving.
 
-**`test/asterisk`** — a disposable Asterisk fixture serving all four
+**`test/asterisk`**: a disposable Asterisk fixture serving all four
 transports at once, with a dialplan of single-purpose extensions: echo, a 1004
 Hz Milliwatt reference tone, DTMF capture and readback, busy, congestion,
 ring-forever, delayed answer, decline, music on hold, a transfer target, and
 app-to-app dialling. AMI lets a test assert what the server received rather
 than what the app displayed.
 
-**`test/integration`** — a harness running the real `SipClient` against that
+**`test/integration`**: a harness running the real `SipClient` against that
 fixture from Node. `src/sip/transports/sockets.ts` makes the sockets
 injectable: the app installs the React Native ones, the harness installs
 Node's `dgram`, `net` and `tls`. Everything above the socket is the code that
@@ -266,7 +266,7 @@ Each presented as something other than what it was:
 - A CA certificate without `keyUsage=keyCertSign` is rejected by modern TLS
   stacks with an error that reads like a server fault.
 
-## 0.1.0 — 2026-09-16
+## 0.1.0, 2026-09-16
 
 The initial build: a working SIP softphone that compiles, lints and tests
 clean, but has not yet completed a call against a live PBX.
@@ -285,8 +285,8 @@ clean, but has not yet completed a call against a live PBX.
 ### Transports
 
 SIP over **UDP, TCP, TLS and WebSocket**. JsSIP ships only a WebSocket socket
-but does not require one — its transport layer accepts anything implementing
-its `Socket` interface — so `src/sip/transports` supplies the rest and
+but does not require one (its transport layer accepts anything implementing
+its `Socket` interface), so `src/sip/transports` supplies the rest and
 `SipClient` picks one per account.
 
 - `UdpTransport`: a datagram is a message, so no framing. Warns above 1300
@@ -294,7 +294,7 @@ its `Socket` interface — so `src/sip/transports` supplies the rest and
 - `StreamTransport`: TCP and TLS share one implementation, because the framing
   problem is identical once the bytes are decrypted. Accumulates, finds the
   CRLFCRLF, reads Content-Length, and surfaces a message only when the body is
-  complete — counted in bytes, not characters. Handles RFC 5626 CRLF
+  complete, counted in bytes, not characters. Handles RFC 5626 CRLF
   keep-alives.
 - Ports default to the RFC-assigned 5060/5060/5061. WS and WSS require an
   explicit URI, because RFC 7118 registers no port and every implementation
@@ -338,7 +338,7 @@ its `Socket` interface — so `src/sip/transports` supplies the rest and
 - **No platform alerts anywhere.** `Dialog.alert`, `Dialog.confirm` and
   `Dialog.actions` queue through a store and are drawn by `DialogHost` at the
   root of the navigator, with `PromptModal` for text entry.
-- The owl mark, small in the top bar and as a faint watermark behind content —
+- The owl mark, small in the top bar and as a faint watermark behind content,
   dropped on the call screen once there is remote video to cover.
 - App icons: a VectorDrawable adaptive icon on Android API 26+, so nothing is
   rasterised there; PNGs only where the platform leaves no choice.

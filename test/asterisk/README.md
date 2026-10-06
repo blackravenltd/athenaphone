@@ -1,8 +1,8 @@
 # Asterisk test fixture
 
 A disposable Asterisk 20 server for exercising AthenaPhone against something
-real. It serves **all four transports at once** — UDP, TCP, TLS and
-WebSocket — so one fixture covers everything the app supports.
+real. It serves **all four transports at once** (UDP, TCP, TLS and
+WebSocket), so one fixture covers everything the app supports.
 
 > **Verified 2026-09-17** against Asterisk 20.6 on Ubuntu 24.04. All four
 > transports answer SIP, the TLS chain verifies, both WebSocket listeners
@@ -21,7 +21,7 @@ second.
 
 | Check | Result |
 | --- | --- |
-| UDP 5060 | `SIP/2.0 401 Unauthorized` — challenging for auth, as it should |
+| UDP 5060 | `SIP/2.0 401 Unauthorized`, challenging for auth, as it should |
 | TCP 5060 | `SIP/2.0 401 Unauthorized` |
 | TLS 5061 | TLSv1.2, chain verified against `tls/ca.crt`, then `401` |
 | WS 8088 | `101 Switching Protocols`, `Sec-WebSocket-Protocol: sip` |
@@ -66,7 +66,7 @@ Each extension does one thing, so a test can assert on one thing.
 | Ext | Behaviour | What it proves |
 | --- | --- | --- |
 | `100`, `*43` | Echo, audio and video | Round trip: send a known tone, assert it returns |
-| `101` | Milliwatt 1004 Hz tone | **Deterministic audio assertion** — see below |
+| `101` | Milliwatt 1004 Hz tone | **Deterministic audio assertion**, see below |
 | `102` | Playback then hang up | Clean remote hangup, reported as `remote-hangup` |
 | `103` | Read 4 DTMF digits, say them back | DTMF in both directions |
 | `104` | Busy | 486, `endReason: 'busy'` |
@@ -101,7 +101,7 @@ dialplan raises `UserEvent`s a test can wait for:
 
 **AthenaPhone's media is always WebRTC, whatever the SIP transport.**
 react-native-webrtc offers DTLS-SRTP with ICE and rtcp-mux even over plain UDP
-signalling, so the endpoint carries `webrtc = yes` on every transport — that
+signalling, so the endpoint carries `webrtc = yes` on every transport; that
 sets `use_avpf`, `media_encryption = dtls`, `ice_support` and `rtcp_mux`
 together.
 
@@ -146,7 +146,7 @@ advertises an address in SDP, and if that is the container's bridge address
 nothing outside can reply. `ASTERISK_EXTERNAL_IP` rewrites it.
 
 On Linux you can sidestep this entirely with `network_mode: host`. On macOS and
-Windows that is not available, so the ports are published instead — including
+Windows that is not available, so the ports are published instead, including
 the RTP range, deliberately kept to 50 ports because publishing thousands of
 UDP ports makes container start crawl.
 
@@ -156,12 +156,12 @@ Recorded because each one presents as something other than what it is.
 
 **Asterisk is not in Debian.** It was removed from bookworm over unfixed CVEs;
 only the sound-file packages remain. The base image is Ubuntu 24.04, which
-carries Asterisk 20.6 — the LTS this configuration targets.
+carries Asterisk 20.6, the LTS this configuration targets.
 
 **`chan_sip` silently disables SIP over WebSocket.** Loaded by default, it
 registers the `sip` WebSocket sub-protocol before
 `res_pjsip_transport_websocket` gets there, so that module declines to load and
-WSS connections are refused — with nothing in the log but one line saying
+WSS connections are refused, with nothing in the log but one line saying
 "declined to load". It also binds UDP 5060 in competition with
 `chan_pjsip`. `modules.conf` unloads it, which fixes both at once.
 
@@ -170,7 +170,7 @@ WSS connections are refused — with nothing in the log but one line saying
 one-way-audio symptom. The entrypoint renders the file with `envsubst` first.
 
 **Template inheritance is `[name](template)`, not `templates = name`.** Written
-the wrong way the objects simply do not appear, with no error — `pjsip show
+the wrong way the objects simply do not appear, with no error: `pjsip show
 endpoints` just comes back short.
 
 **A CA needs `keyUsage=keyCertSign`.** Without it, TLS stacks reject the chain
