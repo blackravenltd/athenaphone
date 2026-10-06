@@ -6,11 +6,16 @@
 //
 
 import {
+  CipherContext,
+  HashAlgorithm,
   MediaStream,
   MediaStreamTrack,
+  NamedCurveAlgorithm,
+  RTCCertificate,
   RTCPeerConnection as WeriftPeerConnection,
   RtpHeader,
   RtpPacket,
+  SignatureAlgorithm,
 } from 'werift';
 
 /**
@@ -27,6 +32,29 @@ import {
  * werift lacks, and audio quality, since the payload is not real audio.
  */
 
+/**
+ * Certificates for the peer connections still to be made. werift otherwise
+ * creates one per process and gives it to every connection, so both ends of
+ * a call would present the same fingerprint -- which no real pair of phones
+ * does, and which a media relay in the middle may not expect.
+ */
+const certificates: RTCCertificate[] = [];
+
+/** Generate `count` DTLS certificates ahead of the calls that need them. */
+export async function prepareCertificates(count: number): Promise<void> {
+  for (let i = 0; i < count; i += 1) {
+    const { certPem, keyPem, signatureHash } =
+      await CipherContext.createSelfSignedCertificateWithKey(
+        {
+          signature: SignatureAlgorithm.ecdsa_3,
+          hash: HashAlgorithm.sha256_4,
+        },
+        NamedCurveAlgorithm.secp256r1_23,
+      );
+    certificates.push(new RTCCertificate(keyPem, certPem, signatureHash));
+  }
+}
+
 /** Packets each peer connection has received, per media kind. */
 const received = new WeakMap<object, { audio: number; video: number }>();
 
@@ -39,7 +67,32 @@ class TestPeerConnection extends WeriftPeerConnection {
       iceUseIpv4: true,
       iceUseIpv6: false,
       ...(config as object),
+      ...(certificates.length > 0
+        ? { certificates: [certificates.shift()!], dtls: {} }
+        : {}),
     });
+    // Answer as the DTLS server. As client, werift's handshake towards
+    // rtpengine stalls whenever its first ClientHello arrives before the
+    // answer has reached rtpengine through the node -- every run without
+    // debug logging, almost none with it. As server it waits for rtpengine's
+    // ClientHello, which rtpengine retransmits until answered; the caller's
+    // leg already works this way. Both are legal answers to actpass.
+    const setLocal = this.setLocalDescription.bind(this);
+    this.setLocalDescription = ((description?: {
+      type?: string;
+      sdp?: string;
+    }) =>
+      setLocal(
+        (description?.type === 'answer'
+          ? {
+              ...description,
+              sdp: (description.sdp ?? '').replace(
+                /^a=setup:active$/gm,
+                'a=setup:passive',
+              ),
+            }
+          : description) as never,
+      )) as typeof this.setLocalDescription;
     const setRemote = this.setRemoteDescription.bind(this);
     this.setRemoteDescription = description =>
       setRemote({

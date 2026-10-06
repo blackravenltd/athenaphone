@@ -19,7 +19,12 @@ import {
 import type { Call, SipAccount } from '../../src/types';
 import { nodeSockets } from '../integration/nodeSockets';
 import { nodeAccount, OWN_SUBSCRIBERS, PASSWORD, waitFor } from './fixture';
-import { fakeMicrophone, installWebRtc, packetsReceived } from './media';
+import {
+  fakeMicrophone,
+  installWebRtc,
+  packetsReceived,
+  prepareCertificates,
+} from './media';
 
 /**
  * Calls between two copies of the app's SIP stack through a live AthenaSIP
@@ -34,9 +39,11 @@ const maybeIt = up ? it : it.skip;
 /** 50 packets a second each way; this is about a second's worth. */
 const FLOWING = 40;
 
-beforeAll(() => {
+beforeAll(async () => {
   setSocketFactories(nodeSockets);
   installWebRtc();
+  // Two peer connections a call, seven calls, and a margin.
+  await prepareCertificates(20);
   (mediaDevices.getUserMedia as jest.Mock).mockImplementation(async () =>
     fakeMicrophone(),
   );
