@@ -259,19 +259,6 @@ describe('registration against AthenaSIP', () => {
   );
 });
 
-// Calls need a WebRTC stack under Node, which the harness does not have yet
-// (werift is the candidate). Listed as todo so the summary counts them as skipped
-// rather than leaving them out.
-describe('calls through AthenaSIP', () => {
-  it.todo(
-    'call between two UAs with media flowing (needs a Node WebRTC stack)',
-  );
-  it.todo('hold and resume (needs a Node WebRTC stack)');
-  it.todo('DTMF received by the far UA (needs a Node WebRTC stack)');
-  it.todo('BYE from each end (needs a Node WebRTC stack)');
-  it.todo('CANCEL before answer (needs a Node WebRTC stack)');
-});
-
 describe('on the A85 (ATHENA_SUITE_DEVICE=1)', () => {
   it.todo(
     'inbound video call answered on the phone (device tests are not automated yet)',

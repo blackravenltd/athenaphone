@@ -14,6 +14,11 @@ module.exports = {
   setupFiles: ['<rootDir>/jest.setup.js'],
   globalSetup: '<rootDir>/test/athenasip/globalSetup.ts',
   testMatch: ['<rootDir>/test/athenasip/**/*.test.ts'],
+  // Plain Node rather than the preset's React Native environment: werift's
+  // DTLS handshake fails under the latter, so calls would never carry media.
+  // The app's native modules are still stubbed by jest.setup.js.
+  testEnvironment: 'node',
+  globals: { __DEV__: false },
   transformIgnorePatterns: [
     'node_modules/(?!(?:jest-)?react-native|@react-native|@react-navigation|react-native-.*|jssip)',
   ],

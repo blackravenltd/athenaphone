@@ -162,12 +162,11 @@ without anyone noticing.
 - [ ] **iOS build.** Never compiled. Needs Xcode and CocoaPods, then
       `pod install`. Every CallKit path is unverified, and that is the half
       most likely to differ from Android.
-- [ ] **Call tests in the harness**: INVITE/180/200/ACK/BYE, CANCEL races,
-      hold and resume, DTMF, and the 486/503/603 outcomes that map to
-      `CallEndReason`. Needs a WebRTC stack under Node for the SDP -- `werift`
-      is the candidate, a new dev dependency awaiting Tom's word. Listed as
-      todo in `test/athenasip`, where two UAs (1003, 1004) would call each
-      other through the node; the same stack serves the Asterisk harness.
+- [ ] **Call tests against Asterisk too.** `test/athenasip/calls.test.ts`
+      calls between two of the app's SIP stacks through AthenaSIP with werift
+      as WebRTC (`test/athenasip/media.ts`); the Asterisk harness could reuse
+      it for the 486/503/603 outcomes and its own extensions. Not covered
+      anywhere: RFC 4733 DTMF, which needs an RTCDTMFSender werift lacks.
 - [ ] **Media assertions.** Extension `101` plays a precise 1004 Hz tone:
       decode the RTP and assert the FFT peak, so a test cannot pass on silence
       or a half-negotiated stream. Same `werift` dependency.
