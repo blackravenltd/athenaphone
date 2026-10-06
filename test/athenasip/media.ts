@@ -24,8 +24,8 @@ import {
  *
  * On the device, JsSIP finds `RTCPeerConnection` as a global installed by
  * react-native-webrtc, and the app captures the microphone through
- * react-native-webrtc's `getUserMedia`. Here werift -- a WebRTC stack in
- * TypeScript -- stands in for the first, and a fake microphone that sends
+ * react-native-webrtc's `getUserMedia`. Here werift - a WebRTC stack in
+ * TypeScript - stands in for the first, and a fake microphone that sends
  * RTP stands in for the second. Everything above that is the shipping code.
  *
  * What it cannot stand in for: RFC 4733 DTMF, which needs an RTCDTMFSender
@@ -35,7 +35,7 @@ import {
 /**
  * Certificates for the peer connections still to be made. werift otherwise
  * creates one per process and gives it to every connection, so both ends of
- * a call would present the same fingerprint -- which no real pair of phones
+ * a call would present the same fingerprint - which no real pair of phones
  * does, and which a media relay in the middle may not expect.
  */
 const certificates: RTCCertificate[] = [];
@@ -73,7 +73,7 @@ class TestPeerConnection extends WeriftPeerConnection {
     });
     // Answer as the DTLS server. As client, werift's handshake towards
     // rtpengine stalls whenever its first ClientHello arrives before the
-    // answer has reached rtpengine through the node -- every run without
+    // answer has reached rtpengine through the node - every run without
     // debug logging, almost none with it. As server it waits for rtpengine's
     // ClientHello, which rtpengine retransmits until answered; the caller's
     // leg already works this way. Both are legal answers to actpass.

@@ -22,7 +22,7 @@ interface CallState {
   dtmfBuffer: string;
   /**
    * The last call to end, kept on the call screen with its outcome until the
-   * user dismisses it -- so a failure is shown rather than the screen just
+   * user dismisses it - so a failure is shown rather than the screen just
    * vanishing. Cleared by a new call.
    */
   concluded?: Call;

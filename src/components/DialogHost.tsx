@@ -14,8 +14,8 @@ import { colors, radius, space, type as typography, TOUCH_TARGET } from '../them
 /**
  * Draws whatever `Dialog` has queued.
  *
- * Mounted once, above the navigator, so a dialog raised from anywhere -- a
- * screen, a service, a failed call -- appears over the current view without
+ * Mounted once, above the navigator, so a dialog raised from anywhere - a
+ * screen, a service, a failed call - appears over the current view without
  * that code needing a reference to any UI.
  */
 export function DialogHost() {

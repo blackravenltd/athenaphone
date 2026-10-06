@@ -48,7 +48,7 @@ interface FieldProps {
   placeholder?: string;
   hint?: string;
   secure?: boolean;
-  /** Keep line breaks, for a value that has them -- a PEM does. */
+  /** Keep line breaks, for a value that has them - a PEM does. */
   multiline?: boolean;
   keyboardType?: 'default' | 'url' | 'number-pad';
   autoCapitalize?: 'none' | 'words';
@@ -138,8 +138,8 @@ export function AccountScreen({ accountId, onDone }: AccountScreenProps) {
   const isWebSocket = transport === 'ws' || transport === 'wss';
 
   /**
-   * Offer a starting WebSocket URI. The port is a guess -- RFC 7118 registers
-   * none -- so this uses Asterisk's, which is the most common deployment.
+   * Offer a starting WebSocket URI. The port is a guess - RFC 7118 registers
+   * none - so this uses Asterisk's, which is the most common deployment.
    */
   const suggestWsUri = useCallback(() => {
     if (!wsUri && domain) {

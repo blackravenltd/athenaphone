@@ -19,8 +19,8 @@ import type {
  * Node-backed sockets for the integration harness.
  *
  * These stand in for react-native-udp and react-native-tcp-socket so the real
- * `SipClient` -- the same JsSIP configuration, the same transports, the same
- * framing -- can talk to a real SIP server from a test process. No device, no
+ * `SipClient` - the same JsSIP configuration, the same transports, the same
+ * framing - can talk to a real SIP server from a test process. No device, no
  * emulator, no Metro.
  *
  * The shapes deliberately match the React Native modules rather than Node's

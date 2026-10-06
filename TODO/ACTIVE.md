@@ -46,7 +46,7 @@ parameters, and re-registration after the node restarts.
 
 **Never exercised at all**: iOS, never compiled, so every CallKit path is
 unverified. Outbound video calls, and camera switching. DTMF, hold and
-transfer end to end. Staying registered unattended for hours -- see below:
+transfer end to end. Staying registered unattended for hours - see below:
 on 2026-10-04 it did not.
 
 ### Running things
@@ -117,8 +117,7 @@ headless-browser spec; Tom answers. The checks already run are in
 - [ ] **Find out why a ringing call was not auto-answered.** On 2026-10-03 a
       call that reached a stale, hot-reloaded copy of the app rang for 30
       seconds with auto-answer on. Stale copies no longer occur and every
-      later call was auto-answered, so it may have been the stale copy alone
-      -- unproven.
+      later call was auto-answered, so it may have been the stale copy alone, unproven.
 
 ### Staying registered
 
@@ -144,8 +143,8 @@ without anyone noticing.
       timed out, and left the account Offline with no retry. A close that
       arrives (corvus, on the LAN) is handled within two seconds. What the
       standards ask:
-      - RFC 5626 4.4: keep each flow alive -- double CRLF on TCP and TLS,
-        STUN on UDP -- and treat a missing pong, or a close, as the flow
+      - RFC 5626 4.4: keep each flow alive - double CRLF on TCP and TLS,
+        STUN on UDP - and treat a missing pong, or a close, as the flow
         failing. `StreamTransport` answers the server's pings but sends none.
       - RFC 5626 4.5: on flow failure, re-register over a new flow with the
         same `+sip.instance` and `reg-id` after a randomised backoff.
@@ -201,15 +200,15 @@ The gaps that will bite during any interoperability work.
 - [ ] **Failover** between SRV targets, and to the next transport when one is
       unreachable.
 - [ ] **Contact is a WebSocket Contact on every transport.** Registering over
-      TCP we send `Contact: <sip:...@d00dk4jg2ruo.invalid;transport=ws>` --
-      an unresolvable host (RFC 6761) and the wrong transport -- because
+      TCP we send `Contact: <sip:...@d00dk4jg2ruo.invalid;transport=ws>` -
+      an unresolvable host (RFC 6761) and the wrong transport - because
       JsSIP's WebSocket Contact leaks onto the sockets in
       `src/sip/transports`. A registrar that routes by the registration flow
       (RFC 5626; we send `+sip.ice`, `reg-id` and `+sip.instance`) never
       reads it, which is why AthenaSIP could reach us. One that resolves it
       cannot reach us at all, and even a flow-routing one loses us the moment
       the connection blips, until re-registration. Confirmed on the wire.
-- [ ] **Every account defaults to Google's STUN server** --
+- [ ] **Every account defaults to Google's STUN server** -
       `accountDefaults.iceServers`. The README promises "no hosted service in
       the middle"; this is one, on by default. Observed effect on a LAN-only
       call: `c=IN IP4 <public address>` and two `srflx` candidates disclosing
@@ -251,11 +250,11 @@ The gaps that will bite during any interoperability work.
       says the response SHOULD carry the SDP an INVITE would be answered
       with. AthenaSIP can probe registered clients with OPTIONS (off by
       default, `behaviour.qualify_interval` per realm) and will make its
-      first offer WebRTC if our 200 carries WebRTC SDP -- which would remove
+      first offer WebRTC if our 200 carries WebRTC SDP - which would remove
       the 488-and-reoffer round trip it otherwise needs to reach us on TCP or
       UDP. A static body is enough and can be honest: AthenaSIP (from its
       commit 58dfb65) reads WebRTC from a `UDP/TLS/RTP/SAVPF` m-line alone, so
-      the reply needs the m-line, a `c=` line and our codecs -- no
+      the reply needs the m-line, a `c=` line and our codecs - no
       fingerprint, no ICE attributes, no peer connection per probe.
 - [ ] **Digest authentication edge cases**: `qop=auth-int`, stale nonces,
       re-authentication mid-dialog, against more than one server.
@@ -286,7 +285,7 @@ Small, specific, and each independently fixable.
       `showWhenLocked` and `turnScreenOn`, meant for incoming calls, so
       waking a locked phone can bring up AthenaPhone with its accounts,
       settings and dialler usable without unlocking. Show the incoming-call
-      screen over the lock screen and nothing else -- set the flags only
+      screen over the lock screen and nothing else - set the flags only
       while a call is ringing or up, or move the call UI to its own activity.
 
 - [ ] **The Bluetooth prompt interrupts the first call.** `requestForCall`

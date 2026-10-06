@@ -68,8 +68,8 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
 
   async recordCall(call) {
     // Newest first, so the list renders without sorting. Keyed by call id and
-    // replaced rather than appended, so recording the same call twice -- a
-    // second end event, or a dev reload re-running the listeners -- cannot
+    // replaced rather than appended, so recording the same call twice - a
+    // second end event, or a dev reload re-running the listeners - cannot
     // leave two rows with one key.
     const entries = [
       toEntry(call),

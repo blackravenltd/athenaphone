@@ -73,7 +73,7 @@ export interface PlaceCallOptions {
  *
  * Responsibilities kept here: UA lifecycle, registration, and translating
  * JsSIP's session events into our `Call` model. Everything platform-specific
- * -- CallKit/ConnectionService, audio routing, ringtones -- lives in
+ * - CallKit/ConnectionService, audio routing, ringtones - lives in
  * `src/services` and reacts to the events this class emits.
  *
  * Transport is pluggable. JsSIP only ships a WebSocket socket, but its
@@ -578,7 +578,7 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
 
     // JsSIP holds the INVITE (or the 200) until ICE gathering reports
     // complete. With a STUN server configured and more than one interface
-    // that can take tens of seconds -- observed at ~40 s on a phone with
+    // that can take tens of seconds - observed at ~40 s on a phone with
     // Wi-Fi and cellular both up, which is long enough for the user to give
     // up and cancel. Every candidate JsSIP sees comes with a `ready()` that
     // ends the wait early; call it once candidates have gone quiet.

@@ -8,7 +8,7 @@
 # Generate a private CA and a server certificate for the test fixture's TLS
 # and WSS listeners.
 #
-# AthenaPhone has no option to skip certificate verification -- deliberately --
+# AthenaPhone has no option to skip certificate verification - deliberately -
 # so testing TLS means trusting this CA. Paste tls/ca.crt into the account's
 # "CA certificate" field.
 #

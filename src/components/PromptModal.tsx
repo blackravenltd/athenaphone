@@ -49,7 +49,7 @@ interface FormModalProps {
  * A modal form of one or more text fields that works on both platforms.
  *
  * `Alert.prompt` is iOS-only and takes one value, so anything needing input
- * from the user -- blind transfer, adding a contact -- goes through this.
+ * from the user - blind transfer, adding a contact - goes through this.
  * Confirm stays disabled until every field has something in it.
  */
 export function FormModal({

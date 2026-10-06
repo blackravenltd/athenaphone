@@ -26,7 +26,7 @@ export type SipTransport = 'udp' | 'tcp' | 'tls' | 'ws' | 'wss';
  *
  * RFC 3261 assigns 5060 to UDP and TCP and 5061 to TLS, so those can be
  * defaulted safely. SIP over WebSocket (RFC 7118) has **no** registered port
- * -- it rides on whatever the deployment chose, and every implementation
+ * - it rides on whatever the deployment chose, and every implementation
  * picks differently (Asterisk 8089, FreeSWITCH 7443, Kamailio 443,
  * AthenaSIP 9500). Guessing one would be wrong more often than right, so
  * `ws`/`wss` accounts must state their URI.
@@ -57,7 +57,7 @@ export interface IceServerConfig {
 }
 
 /**
- * A provisioned SIP identity. `password` is never persisted in this object --
+ * A provisioned SIP identity. `password` is never persisted in this object -
  * it lives in the keychain and is merged in at registration time.
  * See `src/services/CredentialStore.ts`.
  */
@@ -88,7 +88,7 @@ export interface SipAccount {
   port?: number;
   /**
    * PEM for a private CA, for `tls` against a server with a self-signed
-   * certificate -- which is what AthenaSIP ships with.
+   * certificate - which is what AthenaSIP ships with.
    */
   tlsCaPem?: string;
   /** Route all requests via this proxy instead of the domain. */

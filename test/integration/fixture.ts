@@ -18,7 +18,7 @@ import type { SipAccount, SipTransport } from '../../src/types';
  *
  * The host defaults to localhost because the harness runs on the same machine
  * as the container. Override with ATHENA_FIXTURE_HOST to point at a fixture
- * elsewhere -- it must match the address the certificate was issued for.
+ * elsewhere - it must match the address the certificate was issued for.
  */
 export const FIXTURE_HOST = process.env.ATHENA_FIXTURE_HOST ?? '127.0.0.1';
 export const FIXTURE_PASSWORD = 'athenaphone';

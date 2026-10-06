@@ -76,7 +76,7 @@ Each extension does one thing, so a test can assert on one thing.
 | `108` | Decline | 603, `endReason: 'rejected'` |
 | `109` | Music on hold | Hold and resume with media flowing |
 | `110` | Transfer target | Blind transfer landed in the right place |
-| `1001`–`1003` | Dial that endpoint | App-to-app calls, and inbound ringing |
+| `1001`-`1003` | Dial that endpoint | App-to-app calls, and inbound ringing |
 
 ### The Milliwatt trick
 
@@ -127,8 +127,8 @@ Contact 1001/... is now Unreachable.  RTT: 0.000 msec
 Docker Desktop NATs the phone's UDP flow, so Asterisk sees the source as
 `192.168.65.1:<port>` and replies there. That works while the NAT mapping is
 alive, but the mapping is created by the phone's outbound packet and ages out;
-after that, anything Asterisk initiates -- the qualify OPTIONS, an inbound
-INVITE -- has nowhere to go, and the phone's next REGISTER gets no response.
+after that, anything Asterisk initiates - the qualify OPTIONS, an inbound
+INVITE - has nowhere to go, and the phone's next REGISTER gets no response.
 
 This is an environment limitation, not an app defect. Options:
 

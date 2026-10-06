@@ -16,7 +16,7 @@
  * paraphrase what is recorded.
  *
  * That placement also means the trace covers UDP, TCP, TLS and WebSocket
- * without knowing which is in use -- `SipClient.createSocket` is the one
+ * without knowing which is in use - `SipClient.createSocket` is the one
  * place a socket is built, so one wrapper there catches all five accounts.
  *
  * Two outputs, deliberately:
@@ -69,7 +69,7 @@ export interface SipSdpExchange {
    * Offer/answer role under RFC 3264, as far as it can be told from one
    * message. A body in a request is an offer; a body in a 2xx to a request
    * that carried one is the answer. Where the request had no body the 2xx is
-   * itself the offer, which this cannot see in isolation -- so treat this as
+   * itself the offer, which this cannot see in isolation - so treat this as
    * a label for reading, and the raw trace as the record.
    */
   role: 'offer' | 'answer';
@@ -439,7 +439,7 @@ function byteLength(message: string): number {
 
 /**
  * Android's logcat drops a log record over roughly 4 kB, and it truncates
- * silently -- the line simply ends. A WebRTC INVITE carrying video SDP and
+ * silently - the line simply ends. A WebRTC INVITE carrying video SDP and
  * ICE candidates is comfortably past that, so printing a message as one call
  * would lose exactly the part of the capture worth having. Split it well
  * under the limit and number the pieces so they can be reassembled and a

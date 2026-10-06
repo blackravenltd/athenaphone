@@ -36,7 +36,7 @@ export default async function globalSetup(): Promise<void> {
   process.env.ATHENA_NODE_UP = reachable ? '1' : '0';
   if (!reachable) {
     console.warn(
-      `\n  AthenaSIP node unreachable at ${host}:${port} -- the suite will ` +
+      `\n  AthenaSIP node unreachable at ${host}:${port} - the suite will ` +
         'be skipped.\n  The AthenaSIP runner brings it up; by hand, ' +
         'run ../athenasip/test/interop/up.sh and source generated/fixture.env.\n',
     );

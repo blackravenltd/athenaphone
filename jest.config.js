@@ -14,7 +14,7 @@ module.exports = {
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   // Unit tests only. The integration suite needs the Asterisk fixture
-  // running, so `npm run check` must not pull it in -- it has its own config
+  // running, so `npm run check` must not pull it in - it has its own config
   // and its own script.
   testMatch: ['<rootDir>/__tests__/**/*.test.{ts,tsx}'],
 };

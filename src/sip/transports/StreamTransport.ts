@@ -31,7 +31,7 @@ function decode(source: Buffer, start: number, end?: number): string {
  * Unlike UDP, a stream transport has no message boundaries: a single read can
  * carry half a message or three of them. RFC 3261 section 7.5 makes
  * Content-Length mandatory here for exactly that reason, and this class does
- * the framing -- accumulate bytes, find the CRLFCRLF that ends the headers,
+ * the framing - accumulate bytes, find the CRLFCRLF that ends the headers,
  * read Content-Length, and only surface a message once its whole body has
  * arrived.
  *

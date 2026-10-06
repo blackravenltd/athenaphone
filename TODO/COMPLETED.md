@@ -118,7 +118,7 @@ at both ends in both directions, BYE from each end. Recorded as passed.
   `createSocket`, so every transport is traced by construction: raw messages
   both directions, byte-counted, digest `response=` redacted, chunked under
   logcat's 4 kB truncation, with `dump()` and `dumpSdp()` for the artefact.
-  Plus `[media]` lines per call -- ICE, DTLS and connection state changes and
+  Plus `[media]` lines per call - ICE, DTLS and connection state changes and
   a 2 s stats line with the selected candidate pair, RTP packets each way and
   received and sent audio energy. It was the instrument the evening ran on.
 - **Android rings on inbound calls.** A SELF_MANAGED ConnectionService draws
@@ -132,7 +132,7 @@ at both ends in both directions, BYE from each end. Recorded as passed.
   `SipClient` now sends once candidates have been quiet for 500 ms.
 - **Call history cannot hold two rows with one key.** `recordCall` replaces
   by id and `hydrate` de-duplicates what an older build persisted.
-- **No keep-alive warning on every TCP connect** -- `react-native-tcp-socket`
+- **No keep-alive warning on every TCP connect** - `react-native-tcp-socket`
   ignores the delay parameter and said so each time.
 
 **Found and left in `ACTIVE.md`:** the `.invalid;transport=ws` Contact on
@@ -141,8 +141,8 @@ audio focus refused on outbound calls; no `rport`.
 
 **The silent call, for the record.** Every early call rang, connected and
 carried the phone's audio one way; the caller's leg sat at four packets. It
-was blamed on Docker Desktop's NAT (a true observation -- the engine sees the
-browser via a peer-reflexive candidate at Docker's gateway -- that was not
+was blamed on Docker Desktop's NAT (a true observation - the engine sees the
+browser via a peer-reflexive candidate at Docker's gateway - that was not
 the cause, since the same NAT is present when a call works), then on the two
 legs being unalike. The cause was in AthenaSIP: `DTLS=passive` sent to
 rtpengine on the answer as well as the offer reset a handshake the engine had
@@ -160,14 +160,14 @@ Adopted the shared AthenaSIP palette from athenasip-admin, along with the rule
 that governs it: **the accent marks position, never approval.**
 
 Green had been serving as both the accent and the `ok` state, so every
-affirmative control -- call button, Save, Add account, Reconnect, toggles,
-dialog confirms -- shared a hue with every healthy status, and accumulated on
+affirmative control - call button, Save, Add account, Reconnect, toggles,
+dialog confirms - shared a hue with every healthy status, and accumulated on
 every screen until it meant nothing. Eight controls moved onto blue-steel.
 Green now appears only where it carries information: registered, favourite,
 connected, and answering a call.
 
-The accent is blue-steel because AthenaSIP has no brand colour to inherit --
-its logo is monochrome -- and because steel leaves green and red free to mean
+The accent is blue-steel because AthenaSIP has no brand colour to inherit -
+its logo is monochrome - and because steel leaves green and red free to mean
 something. Ground, surfaces, text ramp, borders and semantics were taken
 unchanged, so the two products match.
 
@@ -183,7 +183,7 @@ trusting the numbers:
 
 - Interactive text at `#3d7fb5` gave 4.18:1 on `surface` and 3.70:1 on
   `surface2`. Lifted to `#4d8ec3`. The admin client rightly pointed out its own
-  value was never failing -- there the token is only a ring or border, so the
+  value was never failing - there the token is only a ring or border, so the
   3:1 non-text bar applies. Here it is genuinely text, so 4.5:1 does.
 - The faintest text step at `#77777f` gave 3.57:1 on `surface2`, and it is not
   decorative: it renders contact numbers, the account's user@host, the
@@ -195,8 +195,8 @@ trusting the numbers:
 **The first release that has actually made a call.**
 
 Verified against Asterisk 20.6: registration with digest auth over UDP, TCP,
-TLS and WebSocket, and an audio call carrying two-way Opus over DTLS-SRTP --
-1604 packets sent, 1613 received in 32 seconds -- with the call timer, the
+TLS and WebSocket, and an audio call carrying two-way Opus over DTLS-SRTP -
+1604 packets sent, 1613 received in 32 seconds - with the call timer, the
 Android system call UI, hang-up and call history all behaving.
 
 **`test/asterisk`**: a disposable Asterisk fixture serving all four
@@ -223,7 +223,7 @@ calling a contact all route through it.
 
 - **Outbound calls crashed the app.** CallKeep's `VoiceConnectionService`
   calls `TelecomManager.getPhoneAccount()`, which throws `SecurityException`
-  without `READ_PHONE_NUMBERS` -- inside a system service callback, where JS
+  without `READ_PHONE_NUMBERS` - inside a system service callback, where JS
   cannot catch it, so the process died on the first dial. The permission was
   declared but never requested at runtime.
 - **Which permission to ask for depends on the API level**, and not obviously:
@@ -232,8 +232,8 @@ calling a contact all route through it.
   is absent from the APK entirely, so requesting it could only ever fail and
   would have disabled CallKeep on every modern device.
 - **One tap placed two calls.** Telecom echoes `RNCallKeep.startCall()` back
-  as `didReceiveStartCallAction` -- the event meant for calls dialled from
-  outside the app -- and acting on our own echo placed the call again. It also
+  as `didReceiveStartCallAction` - the event meant for calls dialled from
+  outside the app - and acting on our own echo placed the call again. It also
   bypassed every in-flight guard, because it re-enters the controller directly
   and arrives about a second later.
 - **`SipClient.stop()` returned before the transport closed.** JsSIP
@@ -257,7 +257,7 @@ Each presented as something other than what it was:
   the external address is rendered by the entrypoint with `envsubst`.
 - Template inheritance is `[name](template)`; written as `templates = name`
   the objects never appear and nothing is logged.
-- The AOR must be named for the user part being registered --
+- The AOR must be named for the user part being registered -
   `res_pjsip_registrar` looks it up by the To header, so any other name gives
   404 with endpoint and auth both correct.
 - `rewrite_contact` is required for the non-WebSocket transports: JsSIP

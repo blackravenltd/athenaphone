@@ -63,7 +63,7 @@ const OPTIONS: IOptions = {
  * Bridges AthenaPhone to CallKit (iOS) and ConnectionService (Android) so
  * calls appear on the lock screen and survive backgrounding.
  *
- * Call ids are UUIDs shared with `SipClient` -- the same string identifies a
+ * Call ids are UUIDs shared with `SipClient` - the same string identifies a
  * call here and there, which is why `uuidv4()` is used for `Call.id`.
  */
 class CallKeepServiceImpl extends TypedEmitter<CallKeepEvents> {
@@ -73,7 +73,7 @@ class CallKeepServiceImpl extends TypedEmitter<CallKeepEvents> {
    *
    * Telecom echoes `RNCallKeep.startCall()` straight back as
    * `didReceiveStartCallAction`. That event is meant for calls dialled from
-   * outside the app -- the system dialer, Contacts, a tel: link -- so acting
+   * outside the app - the system dialer, Contacts, a tel: link - so acting
    * on it is correct in general, but acting on our own echo places the call a
    * second time. See `bindEvents`.
    */
@@ -96,7 +96,7 @@ class CallKeepServiceImpl extends TypedEmitter<CallKeepEvents> {
       this.bindEvents();
       this.ready = true;
 
-      // Clears anything left in CallKeep's own connection map -- a JS reload
+      // Clears anything left in CallKeep's own connection map - a JS reload
       // with a call up, or a second init.
       //
       // It does NOT clear an orphan from a previous *process*: endAllCalls
@@ -310,8 +310,8 @@ class CallKeepServiceImpl extends TypedEmitter<CallKeepEvents> {
       this.emit('audioSessionDeactivated', undefined);
     });
 
-    // Calls dialled from outside the app -- the system dialer, Contacts, a
-    // tel: link -- arrive here, and we place them. Our own outbound calls
+    // Calls dialled from outside the app - the system dialer, Contacts, a
+    // tel: link - arrive here, and we place them. Our own outbound calls
     // arrive here too, because telecom echoes RNCallKeep.startCall() back,
     // and placing those again is how one tap became two calls a second apart.
     RNCallKeep.addEventListener(

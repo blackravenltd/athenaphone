@@ -36,8 +36,8 @@ class CallControllerImpl {
   /**
    * Set while an outbound call is being placed.
    *
-   * Placing a call is asynchronous -- permissions, then getUserMedia, then the
-   * INVITE -- and until the SIP session exists there is nothing in the store
+   * Placing a call is asynchronous - permissions, then getUserMedia, then the
+   * INVITE - and until the SIP session exists there is nothing in the store
    * to show a call is already under way. A second tap in that window starts a
    * genuinely separate call, which is how one press of the dial button ends up
    * with two channels and "1 other call on hold".
@@ -315,7 +315,7 @@ class CallControllerImpl {
 
       // CallKit rings; a SELF_MANAGED ConnectionService does not. Android
       // draws the call UI and leaves the sound to the app, so deferring to
-      // "the system" here is right on iOS and silent on Android -- an
+      // "the system" here is right on iOS and silent on Android - an
       // inbound call that shows a card and makes no noise, which is
       // indistinguishable from a call that never arrived.
       if (Platform.OS === 'android' && settings.ringtoneEnabled) {
@@ -331,8 +331,8 @@ class CallControllerImpl {
   }
 
   private handleEnded(call: Call): void {
-    // A call that ends while still ringing -- cancelled by the caller, or
-    // timed out unanswered -- never passes through answerCall or rejectCall,
+    // A call that ends while still ringing - cancelled by the caller, or
+    // timed out unanswered - never passes through answerCall or rejectCall,
     // so this is the only place that stops the ringtone for it.
     AudioService.stopRingtone();
 
