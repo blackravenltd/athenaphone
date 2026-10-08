@@ -1,249 +1,114 @@
 # AthenaPhone
 
-An open source, fully featured SIP softphone for iOS and Android, with video
-calling. Built with React Native, [JsSIP](https://jssip.net) and
+An open source, standards-compliant SIP softphone for Android. Audio and video
+calls to any SIP server you choose, with no proprietary components and no
+hosted service in the middle. Built with React Native,
+[JsSIP](https://jssip.net) and
 [react-native-webrtc](https://github.com/react-native-webrtc/react-native-webrtc).
 
-The goal is parity with a commercial desk phone or softphone: registration,
-audio and video calls, hold, transfer, conferencing, DTMF, call history,
-contacts, and proper integration with the platform call UI, with no
-proprietary components and no hosted service in the middle. You point it at
-your own SIP server and it is yours.
+> **Status: working on Android, not yet released.** Registration, inbound and
+> outbound audio and video calls, hold, mute, DTMF, blind transfer, history
+> and contacts work on a real phone. The code also targets iOS, but it has
+> never been built there. Open work is in [`TODO/ACTIVE.md`](TODO/ACTIVE.md).
 
-> **Status: early.** Registration over four transports, audio and video
-> calling, hold, mute, blind transfer, DTMF, history and contacts are
-> implemented, and the project compiles, lints and tests clean. **No call has
-> yet completed against a live PBX.** What is missing, and what is next, is in
-> [`TODO/ACTIVE.md`](TODO/ACTIVE.md).
+## Put it on a phone
 
-## Transports
-
-AthenaPhone speaks SIP over **UDP, TCP, TLS and WebSocket**. The aim is
-fidelity to the standards and interoperability with the servers people
-actually run, rather than a tie to any one implementation.
-
-| Transport | Default port | Notes |
-| --- | --- | --- |
-| UDP | 5060 | Universally supported, and the default for a new account. Credentials travel in the clear. |
-| TCP | 5060 | No datagram size limit, so large INVITEs carrying video SDP are safe. Still unencrypted. |
-| TLS | 5061 | Encrypted signalling. Preferred wherever the server supports it. Accepts a CA PEM for a private or self-signed certificate. |
-| WS / WSS | none | SIP over WebSocket (RFC 7118) registers no port, so these accounts must give the full URI. |
-
-JsSIP ships only a WebSocket socket, but it does not require one: its
-transport layer accepts anything implementing its `Socket` interface.
-[`src/sip/transports`](src/sip/transports) supplies the rest.
-
-- **`UdpTransport`**: one datagram is one SIP message, so there is no framing
-  to do.
-- **`StreamTransport`**: TCP and TLS, which do need framing. A stream has no
-  message boundaries, so it accumulates bytes, finds the CRLFCRLF ending the
-  headers, reads `Content-Length`, and surfaces a message only once its whole
-  body has arrived, counted in bytes, not characters. Covered by
-  [`__tests__/streamTransport.test.ts`](__tests__/streamTransport.test.ts).
-
-### Relationship to AthenaSIP
-
-[AthenaSIP](https://github.com/blackravenltd/athenasip) is a sibling project
-(a SIP server), and the two are intended to ship together. That does not make
-AthenaPhone an AthenaSIP client. It has to work properly against Asterisk,
-FreeSWITCH, Kamailio and commodity providers first; AthenaSIP is one target
-among those rather than the one that sets the defaults.
-
-## Requirements
-
-- Node 20 or newer (developed on Node 24)
-- Watchman (`brew install watchman`)
-- **Android:** JDK 17, Android SDK, a device or emulator on API 24+
-- **iOS:** Xcode 16+, CocoaPods, and a real device for calls; the simulator
-  has no camera and unreliable audio capture
-- A SIP server reachable over UDP, TCP, TLS or WebSocket
-
-## Getting started
+You need Node 20+, JDK 17, the Android SDK and an Android 7 (API 24) or newer
+phone with USB or wireless debugging on.
 
 ```bash
 npm install
-
-# iOS only
-bundle install
-bundle exec pod install --project-directory=ios
-
-npm start            # Metro
-npm run android      # or: npm run ios
+cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
+adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
-Then open **Settings → Add account**. Choose the transport first: the fields
-below it follow from that choice, and the port defaults to the RFC-assigned
-one for UDP, TCP and TLS.
+That builds a standalone APK for current 64-bit phones; drop the
+`-PreactNativeArchitectures` flag to build for every ABI. The release build is
+signed with the debug key, so it installs over a debug build but is not fit
+for distribution.
 
-## Project layout
+For development, run a debug build against Metro instead:
 
-```
-src/
-  sip/            JsSIP wrapper. The only place that imports jssip.
-    transports/   UDP, TCP and TLS sockets for JsSIP.
-  services/       Platform glue: CallKeep, audio routing, permissions, storage.
-  store/          Zustand stores. Plain state, no SIP or platform knowledge.
-  screens/        Dialer, Call, Recents, Contacts, Settings, Account.
-  components/     Shared UI, including Screen, the dialogs and the icon set.
-  navigation/     Tab and stack navigators.
-  theme/          Design tokens.
-  hooks/          Shared React hooks.
-  utils/          Pure helpers: SIP URI handling, ids, the typed emitter.
-  assets/         The mark, inlined for SvgXml.
+```bash
+npm start
+npm run android
 ```
 
-The layering is deliberate and worth preserving:
+A debug build loads its JavaScript from Metro on your computer, so the phone
+needs `adb reverse tcp:8081 tcp:8081` for every adb session. Without it the
+app closes about three seconds after launch with no error on screen.
 
-- **`src/sip`** knows SIP and nothing else: no CallKit, no audio session, no
-  persistence.
-- **`src/store`** holds plain application state and does not know SIP exists.
-- **`src/services/CallController.ts`** is the only module that knows about
-  both, and is where call actions from the UI are routed.
+## Set up an account
 
-If you find yourself importing `sipClient` into a screen, that is the seam
-telling you the logic belongs in `CallController` instead.
+**Settings → Add account.** Pick the transport first; the port defaults to
+5060 for UDP and TCP and 5061 for TLS. For a server whose certificate comes
+from a private CA, paste the CA's PEM into **CA certificate**. Then tap the
+account to make it active.
+
+**Remain in background** (on by default) keeps the app running while an
+account is online, with a notification, so calls arrive when it is not on
+screen. Some phones still kill it: exempt AthenaPhone from battery
+optimisation, and on Blackview and similar, lock it in the recent-apps view.
+
+## Standards
+
+| | |
+| --- | --- |
+| SIP | RFC 3261 over UDP, TCP and TLS; WebSocket per RFC 7118 |
+| Authentication | Digest, MD5 (RFC 3261) |
+| Registration | RFC 5626 outbound parameters (`+sip.instance`, `reg-id`) |
+| Media | WebRTC: ICE, DTLS-SRTP, Opus, G.722, G.711 |
+| DTMF | RFC 4733 by default, SIP INFO per account |
+| Transfer | Blind, via REFER (RFC 3515) |
+
+Known gaps, all in [`TODO/ACTIVE.md`](TODO/ACTIVE.md): no DNS SRV/NAPTR
+(RFC 3263), no keep-alives or flow recovery (RFC 5626 4.4 and 4.5), the
+Contact is always WebSocket-shaped, no plain RTP, and no push (RFC 8599).
+Media is always WebRTC, so a server offering plain RTP/AVP will register the
+phone and then get a 488.
+
+## Security
+
+- Passwords live in the Android Keystore via `react-native-keychain`, never
+  in app storage.
+- Prefer TLS or WSS. UDP, TCP and `ws://` send signalling in the clear.
+- TLS verifies against the system trust store or the account's CA. There is
+  no way to skip verification.
+- Media is always encrypted (DTLS-SRTP).
 
 ## Development
 
 ```bash
-npm run typecheck   # tsc --noEmit
-npm run lint
-npm test
-npm run check       # all three, as CI runs them
+npm run check              # typecheck, lint, unit tests
+npm run test:integration   # SIP stack against the Asterisk fixture
+npm run test:athenasip     # SIP stack and calls against an AthenaSIP node
 ```
 
-### Testing against a real server
+The two live-server suites run the app's own SIP code from Node, no phone
+needed; see [`test/README.md`](test/README.md).
 
-[`test/asterisk`](test/asterisk) is a disposable Asterisk fixture serving all
-four transports at once, with a dialplan of single-purpose test extensions
-(echo, a 1004 Hz reference tone, DTMF capture and readback, busy, no-answer,
-hold and a transfer target), plus AMI so tests can assert on what the server
-saw rather than only on what the app displayed.
+**SIP trace:** Settings → Diagnostics → Verbose SIP logging writes every SIP
+message, as sent and received, to the console. Capture it with
+`adb logcat -s ReactNativeJS`.
 
-```bash
-cd test/asterisk
-cp .env.example .env          # the address your device reaches this host on
-./scripts/generate-certs.sh <that address>
-docker compose up --build
-```
+**Layout:** `src/sip` is the SIP stack and knows nothing of the platform;
+`src/store` is plain state and knows nothing of SIP;
+`src/services/CallController.ts` joins the two and is where UI call actions
+go. Screens should not import `sipClient` directly.
 
-Register as `1001` / `athenaphone`. See
-[`test/asterisk/README.md`](test/asterisk/README.md) for the extension table.
+**Patches:** `patches/` is applied by `patch-package` on install. One makes
+`react-native-callkeep` load under RN 0.87; the other fixes a JsSIP timer that
+made it answer a quick re-INVITE with 482.
 
-### Capturing a SIP trace
-
-**Settings → Diagnostics → Verbose SIP logging** turns on `src/sip/SipTrace.ts`,
-which wraps the JsSIP socket and records every message in both directions as
-it went on the wire: before JsSIP has parsed it, and after it has serialised
-it, so nothing above the transport can paraphrase what is recorded. It covers
-all five transports, because `createSocket` is the one place a socket is
-built.
-
-Messages go to the console, so Metro or `adb logcat -s ReactNativeJS` captures
-a call as it happens:
-
-```bash
-adb logcat -c && adb logcat -s ReactNativeJS | tee trace.log
-```
-
-Long messages are split into numbered parts, because logcat silently truncates
-a record over about 4 kB and a WebRTC INVITE is bigger than that.
-
-The last 500 messages are also kept in memory: `sipTrace.dump()` returns the
-whole capture and `sipTrace.dumpSdp()` returns just the SDP bodies, tagged
-with direction and offer/answer role, which is the artefact an
-interoperability result gets argued from. Digest `response=` values are
-redacted; `sipTrace.setRedactCredentials(false)` restores them.
-
-With the fixture up, the integration harness runs the real SIP stack against
-it from Node, with no device and no emulator:
-
-```bash
-npm run test:integration
-```
-
-Only the sockets are swapped, for Node's `dgram`, `net` and `tls`; everything
-above them is the code that ships. See
-[`test/integration/README.md`](test/integration/README.md).
-
-### Patches
-
-`npm run postinstall` applies [`patches/`](patches) via `patch-package`. The
-one patch there de-annotates two duplicate `@ReactMethod` overloads in
-`react-native-callkeep`, which RN 0.87's TurboModule interop rejects; without
-it the module fails to load and every CallKit and ConnectionService path is
-dead.
-
-## Design
-
-Dark-only, on the shared AthenaSIP palette, adopted from
-[athenasip-admin](https://github.com/blackravenltd/athenasip-admin), whose
-structure in turn comes from the sibling `macha-client-rn` client: a near-black
-ground, a layered surface ramp, a three-step text ramp, and a minimum 44pt
-touch target on every control. Tokens are in
-[`src/theme`](src/theme/index.ts).
-
-**The rule that governs the palette: the accent marks position, never
-approval.** Accent is for where you are and what you are about to act on: the
-focused control, the primary action. Green, amber and red are reserved for
-state a reader must not have to interpret, and nothing decorative may use
-them. This app previously used green as both accent and "ok", which made it
-read as relentlessly green; confining green to state makes it carry
-information again.
-
-The accent is blue-steel because AthenaSIP has no brand colour to inherit
-(its logo is monochrome), and because steel leaves green and red free to mean
-something.
-
-**Call controls are the exception, and deliberately so.** Answer and hang up
-are telephony affordances, not branding: answer is the same green as
-"registered", hang up is a saturated red. They are far apart in luminance
-(0.41 against 0.21) and differ in more than hue (answer carries dark content,
-hang up light), so they stay distinguishable for the red/green colour vision
-deficiency that would otherwise make them the worst possible pair. Position
-does the primary work: answer left, hang up right, never swapped between
-screens.
-
-**Dialogs.** The app never uses `Alert`. The platform alert cannot be styled,
-looks like a different application on top of this one, and differs between
-iOS and Android in button order and capability: `Alert.prompt` is iOS-only.
-[`src/store/dialogStore.ts`](src/store/dialogStore.ts) provides
-`Dialog.alert`, `Dialog.confirm` and `Dialog.actions`, drawn by `DialogHost`
-at the root of the navigator, with `PromptModal` for text entry.
-
-**Icons** are hand-drawn on a 24-unit grid rather than an icon font, which
-keeps a whole typeface out of the bundle. Body text uses the platform face.
-
-**The mark** is an owl, Athena's. It appears small at the left of the top bar
-and again as a faint watermark behind the content, except on the call screen
-once remote video is up, where drawing over the picture would be a defect.
-`assets/logo/athenaphone-mark.svg` is the design source;
-`src/assets/athenaMark.ts` is the copy the app renders, inlined for `SvgXml`
-so no Metro transformer is needed. `scripts/generate-icons.sh` rasterises the
-app icons, and is the only place in the project that turns a vector into a
-bitmap.
-
-## Security notes
-
-- SIP passwords are stored with `react-native-keychain`
-  (`WHEN_UNLOCKED_THIS_DEVICE_ONLY`), never in AsyncStorage and never in the
-  serialised account object.
-- Prefer TLS or WSS. The app accepts UDP, TCP and `ws://` because they are
-  what most servers offer and lab setups need them, but on those your
-  credentials and signalling are in the clear.
-- TLS uses the system trust store unless an account supplies a CA PEM. There
-  is no option to skip certificate verification.
-- `NSAllowsArbitraryLoads` is off; local networking is permitted so that
-  private-network PBXs work.
-- Media is DTLS-SRTP encrypted by WebRTC. Signalling security is whatever the
-  transport gives you.
+**Design:** dark only. The accent marks where you are, never approval; green,
+amber and red mean state and nothing else. Answer and hang up stay green and
+red in fixed positions. Dialogs are the app's own (`dialogStore`), not
+`Alert`. Tokens are in [`src/theme`](src/theme/index.ts).
 
 ## Contributing
 
-Issues and pull requests are welcome. Work happens on `develop`; `main` tracks
-released versions. Please run `npm run check` before opening a PR, and add to
-[`TODO/ACTIVE.md`](TODO/ACTIVE.md) if you start on something sizeable so
-effort is not duplicated.
+Issues and pull requests are welcome. Work happens on `develop`; `main`
+tracks releases. Run `npm run check` before opening a PR.
 
 ## Licence
 
