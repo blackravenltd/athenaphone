@@ -1,4 +1,4 @@
-![AthenaSIP Logo](docs/logos/athenasip_small_white.png)
+![AthenaSIP Logo](docs/logos/athenasip_small_white.svg)
 
 # AthenaPhone
 
