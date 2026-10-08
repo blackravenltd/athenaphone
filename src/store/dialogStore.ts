@@ -51,7 +51,7 @@ export const useDialogStore = create<DialogState>((set, get) => ({
  *
  * The platform alert cannot be styled, looks like a different application on
  * top of this one, and differs between iOS and Android in button order and in
- * what it supports -- `Alert.prompt` is iOS-only. Everything here is drawn by
+ * what it supports - `Alert.prompt` is iOS-only. Everything here is drawn by
  * `DialogHost` in the app's own language instead.
  */
 export const Dialog = {

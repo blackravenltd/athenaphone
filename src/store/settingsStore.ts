@@ -12,7 +12,12 @@ import { Storage, StorageKeys } from '../services/Storage';
 export interface AppSettings {
   /** Hand incoming calls to CallKit / ConnectionService. */
   useSystemCallUi: boolean;
-  /** Play a ringtone in-app when the system UI is not handling it. */
+  /**
+   * Ring for inbound calls. On Android this plays even when the system call
+   * screen is on, because a SELF_MANAGED ConnectionService draws the UI but
+   * never rings; on iOS CallKit owns the sound and this covers the in-app
+   * path only.
+   */
   ringtoneEnabled: boolean;
   vibrateOnRing: boolean;
   /** Play a short tone for each dialpad press. */
@@ -23,6 +28,12 @@ export interface AppSettings {
   startVideoMuted: boolean;
   /** Turn the loudspeaker on automatically for video calls. */
   autoSpeakerOnVideo: boolean;
+  /**
+   * Keep the app running while an account is online, so calls arrive with
+   * it off screen. On Android this is a foreground service and a standing
+   * notification.
+   */
+  remainInBackground: boolean;
   /** Accept the next inbound call without user interaction (headset mode). */
   autoAnswer: boolean;
   /** Echo SIP traffic to the console. Noisy; off by default. */
@@ -37,6 +48,7 @@ export const defaultSettings: AppSettings = {
   preferVideo: false,
   startVideoMuted: false,
   autoSpeakerOnVideo: true,
+  remainInBackground: true,
   autoAnswer: false,
   verboseSipLogging: false,
 };

@@ -15,7 +15,7 @@ services:
     # own address in SDP, which nothing outside the bridge can reach. On Linux,
     # host networking avoids the problem entirely. Everywhere else the ports
     # below are published and pjsip.conf rewrites the address using
-    # ASTERISK_EXTERNAL_IP -- see .env.example.
+    # ASTERISK_EXTERNAL_IP - see .env.example.
     ports:
       - "5060:5060/udp"     # SIP over UDP
       - "5060:5060/tcp"     # SIP over TCP

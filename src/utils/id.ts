@@ -8,8 +8,8 @@
 import 'react-native-get-random-values';
 
 /**
- * RFC 4122 v4 UUID, used for call ids. CallKeep requires real UUIDs -- it
- * rejects arbitrary strings on iOS -- so this cannot be a random hex blob.
+ * RFC 4122 v4 UUID, used for call ids. CallKeep requires real UUIDs - it
+ * rejects arbitrary strings on iOS - so this cannot be a random hex blob.
  */
 export function uuidv4(): string {
   const bytes = new Uint8Array(16);

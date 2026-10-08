@@ -38,7 +38,7 @@ export default async function globalSetup(): Promise<void> {
 
   if (!reachable) {
     console.warn(
-      `\n  Asterisk fixture unreachable at ${host}:${port} -- ` +
+      `\n  Asterisk fixture unreachable at ${host}:${port} - ` +
         'integration tests will be skipped.' +
         '\n  Start it with: cd test/asterisk && docker compose up -d\n',
     );

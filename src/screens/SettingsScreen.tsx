@@ -146,6 +146,12 @@ export function SettingsScreen({ onEditAccount }: SettingsScreenProps) {
             onChange={update('useSystemCallUi')}
           />
           <Toggle
+            label="Remain in background"
+            detail="Stay online for calls when AthenaPhone is not on screen. Shows a notification while online."
+            value={settings.remainInBackground}
+            onChange={update('remainInBackground')}
+          />
+          <Toggle
             label="Auto answer"
             detail="Answer incoming calls without touching the phone"
             value={settings.autoAnswer}
@@ -175,7 +181,7 @@ export function SettingsScreen({ onEditAccount }: SettingsScreenProps) {
         <View style={styles.group}>
           <Toggle
             label="Ringtone"
-            detail="Play a ringtone when the system UI is not handling the call"
+            detail="Ring for incoming calls. Android rings in-app even with the system call screen on."
             value={settings.ringtoneEnabled}
             onChange={update('ringtoneEnabled')}
             disabled={settings.useSystemCallUi}

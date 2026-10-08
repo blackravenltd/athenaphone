@@ -30,6 +30,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -92,6 +93,19 @@
         <intent-filter>
           <action android:name="android.telecom.ConnectionService" />
         </intent-filter>
+      </service>
+
+      <!-- Keeps the process alive while an account is registered, so the SIP
+           connection survives the app leaving the screen. specialUse because
+           no other type fits holding a self-hosted signalling connection
+           open; phoneCall is for a call in progress. -->
+      <service
+        android:name=".RegistrationService"
+        android:foregroundServiceType="specialUse"
+        android:exported="false">
+        <property
+          android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+          android:value="Maintains a SIP registration so incoming calls can be received" />
       </service>
     </application>
 </manifest>

@@ -107,7 +107,7 @@ class AudioServiceImpl {
         available.push('headset');
       }
     } catch {
-      // Not fatal -- the picker just shows one option fewer.
+      // Not fatal - the picker just shows one option fewer.
     }
     if (Platform.OS === 'android') {
       available.push('bluetooth');

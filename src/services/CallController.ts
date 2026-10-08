@@ -13,10 +13,12 @@ import { useCallStore } from '../store/callStore';
 import { useHistoryStore } from '../store/historyStore';
 import { useSettingsStore } from '../store/settingsStore';
 import type { Call, SipAccount } from '../types';
+import { shouldHoldOutcome } from '../utils/callOutcome';
 import { AudioService } from './AudioService';
 import { CallKeepService } from './CallKeepService';
 import { CredentialStore } from './CredentialStore';
 import { PermissionsService } from './PermissionsService';
+import { RegistrationNotice } from './RegistrationNotice';
 
 /**
  * The seam between the SIP engine and everything platform-shaped.
@@ -34,8 +36,8 @@ class CallControllerImpl {
   /**
    * Set while an outbound call is being placed.
    *
-   * Placing a call is asynchronous -- permissions, then getUserMedia, then the
-   * INVITE -- and until the SIP session exists there is nothing in the store
+   * Placing a call is asynchronous - permissions, then getUserMedia, then the
+   * INVITE - and until the SIP session exists there is nothing in the store
    * to show a call is already under way. A second tap in that window starts a
    * genuinely separate call, which is how one press of the dial button ends up
    * with two channels and "1 other call on hold".
@@ -221,6 +223,7 @@ class CallControllerImpl {
     this.unsubscribers.push(
       sipClient.on('registration', status => {
         useAccountStore.getState().setRegistration(status);
+        RegistrationNotice.sync();
       }),
 
       sipClient.on('call:new', call => {
@@ -308,8 +311,16 @@ class CallControllerImpl {
     const settings = useSettingsStore.getState();
 
     if (settings.useSystemCallUi && CallKeepService.isReady) {
-      // CallKit / ConnectionService owns the ringtone and the call screen.
       CallKeepService.reportIncoming(call);
+
+      // CallKit rings; a SELF_MANAGED ConnectionService does not. Android
+      // draws the call UI and leaves the sound to the app, so deferring to
+      // "the system" here is right on iOS and silent on Android - an
+      // inbound call that shows a card and makes no noise, which is
+      // indistinguishable from a call that never arrived.
+      if (Platform.OS === 'android' && settings.ringtoneEnabled) {
+        AudioService.startRingtone();
+      }
     } else if (settings.ringtoneEnabled) {
       AudioService.startRingtone();
     }
@@ -320,9 +331,22 @@ class CallControllerImpl {
   }
 
   private handleEnded(call: Call): void {
+    // A call that ends while still ringing - cancelled by the caller, or
+    // timed out unanswered - never passes through answerCall or rejectCall,
+    // so this is the only place that stops the ringtone for it.
+    AudioService.stopRingtone();
+
     const store = useCallStore.getState();
     store.removeCall(call.id);
     void useHistoryStore.getState().recordCall(call);
+    // Keep the outcome up when it was not the user's doing and nothing else
+    // is on screen; a second leg still in progress takes precedence.
+    if (
+      shouldHoldOutcome(call) &&
+      useCallStore.getState().calls.length === 0
+    ) {
+      store.conclude(call);
+    }
 
     const wasMissed =
       call.direction === 'inbound' && call.answeredAt === undefined;

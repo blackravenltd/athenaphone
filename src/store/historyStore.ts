@@ -55,12 +55,26 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
       StorageKeys.history,
       [],
     );
-    set({ entries, hydrated: true });
+    // Drop duplicates a previous build may have persisted, keeping the newest.
+    const seen = new Set<string>();
+    const unique = entries.filter(entry =>
+      seen.has(entry.id) ? false : (seen.add(entry.id), true),
+    );
+    set({ entries: unique, hydrated: true });
+    if (unique.length !== entries.length) {
+      await Storage.write(StorageKeys.history, unique);
+    }
   },
 
   async recordCall(call) {
-    // Newest first, so the list renders without sorting.
-    const entries = [toEntry(call), ...get().entries].slice(0, MAX_ENTRIES);
+    // Newest first, so the list renders without sorting. Keyed by call id and
+    // replaced rather than appended, so recording the same call twice - a
+    // second end event, or a dev reload re-running the listeners - cannot
+    // leave two rows with one key.
+    const entries = [
+      toEntry(call),
+      ...get().entries.filter(entry => entry.id !== call.id),
+    ].slice(0, MAX_ENTRIES);
     set({ entries });
     await Storage.write(StorageKeys.history, entries);
   },

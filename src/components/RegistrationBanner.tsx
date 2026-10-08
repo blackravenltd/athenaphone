@@ -20,7 +20,7 @@ import { StatusDot } from './StatusDot';
 
 /**
  * The registration indicator under the dialer's header: a status dot, the
- * account name, and the SIP reason when something is wrong -- which is usually
+ * account name, and the SIP reason when something is wrong - which is usually
  * the only clue a user gets about a bad password or an unreachable PBX.
  */
 export function RegistrationBanner() {

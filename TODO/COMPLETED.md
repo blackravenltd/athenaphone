@@ -4,7 +4,292 @@ Newest first. One entry per milestone, recording what actually shipped.
 
 ---
 
-## 0.1.0 — 2026-09-16
+## 0.4.0, 2026-10-08
+
+Calls that explain themselves, contacts that can be edited, an app that
+stays online in the background, and a test suite that places real calls.
+
+**Shipped:**
+
+- **A call's outcome stays on screen until dismissed.** Busy, No answer,
+  Declined, Unavailable, Could not connect, Connection lost, or Call ended
+  with its length, and the server's response underneath; Close or Call
+  again. A failed call no longer just vanishes.
+- **Contacts:** name and number are separate fields, and a contact can be
+  edited from its long-press menu.
+- **Remain in background** and the compact video-call toolbar; see the
+  2026-10-04 entry below.
+- **`npm run test:athenasip`**, AthenaPhone's part of AthenaSIP's combined
+  suite: registration on every transport and calls between two copies of the
+  SIP stack through a live node, with werift as WebRTC. Passing in both its
+  direct and TURN-relayed phases.
+- **Documentation** rewritten around Android and getting the app onto a
+  phone.
+- Every dash in the repository is a plain hyphen.
+
+### 2026-10-04, the public node and the background
+
+Against `macnessa.athenasip.org`, a public AthenaSIP node behind NAT with
+rtpengine, reached from the phone over the internet. Video calls came from
+a headless Chromium driven by the AthenaSIP session, answered by Tom.
+
+**Verified:**
+
+- **Registration from the internet side** as `1003`, over TLS 5061 with the
+  test CA (the node's certificate names `macnessa.athenasip.org`) and later
+  over TCP.
+- **Inbound video through rtpengine.** Unbundled audio and video m-lines,
+  both answered `sendrecv`; ICE to rtpengine's public address via a
+  peer-reflexive candidate; Chromium's fake-camera pattern rendered and
+  moving; fake-audio tone received. The first of four runs ended early
+  because Tom hung up; the third never arrived (the node restart below).
+- **A release build on both A85s**, the second a fresh install.
+
+**Shipped from it:**
+
+- **"Remain in background", on by default.** An Android foreground service
+  (`RegistrationService`, `specialUse`) holds the process while an account
+  is online, with a low-importance notification naming the account and its
+  state and the owl as status-bar icon. Confirmed in the foreground with
+  the icon showing from the home screen. It was not enough on the A85: see
+  "Staying registered" in `ACTIVE.md`.
+- **A compact video-call toolbar.** In a video call the controls are one
+  small translucent bar, draggable and kept on screen, with name and timer
+  on its grip. Built and installed; not yet seen in a call.
+
+**Found and left in `ACTIVE.md`:** the Blackview memory cleaner killing the
+app through its foreground service; a dead TLS flow after a node restart
+going unnoticed, with no retry after the failed refresh; the whole app
+usable over the lock screen.
+
+## 0.3.0, 2026-10-03
+
+Interoperation with AthenaSIP: the UAT against the test fixture, then the
+deployed node, ending with a video call on a release build.
+
+### 2026-10-03, device checks against the deployed AthenaSIP
+
+The A85 against corvus-fi-1 (realm `10.35.1.20`, AthenaSIP's builtin media
+engine, which relays the caller's offer and cannot convert it), registered
+as subscriber `athenaphone`.
+
+**Verified:**
+
+- **Registration over TCP, UDP and TLS**, the last on 5061 with AthenaSIP's
+  test CA in the account.
+- **An inbound WebRTC call**, from the admin console's softphone as `1001`,
+  over TLS. First INVITE `UDP/TLS/RTP/SAVPF` with fingerprint and ICE
+  credentials, no 488; auto-answered; ICE and DTLS on host candidates, media
+  direct between browser and phone; a mid-call UPDATE answered; BYE from the
+  browser; audio heard in both directions. The first attempt was silent one
+  way because the Mac's microphone input was a loopback device.
+- **The 407 challenge on an INVITE over UDP**: INVITE, 407, ACK, INVITE with
+  `Proxy-Authorization`, 100 Trying. The call itself was not answered.
+
+**Shipped from it:**
+
+- **A plain-RTP offer is refused before it rings.** It used to get 180, a
+  half-second flash of the system call screen, then 488 and a missed call in
+  Recents. `SipClient` now refuses inside `newRTCSession`, before the 180,
+  unless the offer has a DTLS-keyed audio stream with a fingerprint
+  (`canAnswerOffer`, `src/utils/sdp.ts`). Confirmed on the device.
+- **No 482 to a quick re-offer.** AthenaSIP ACKed our 488 and re-offered on
+  a new branch 8 ms later; JsSIP still listed the first transaction, because
+  its zero Timer I is a `setTimeout(0)`, took the re-INVITE for a merged
+  request and answered 482 Loop Detected. `patches/jssip+3.13.8.patch` ends
+  the transaction when the ACK is processed. Covered by
+  `__tests__/jssipTimerI.test.ts`, which fails if the patch is lost; not
+  re-run on the device, since corvus-fi-1 no longer re-offers.
+- **A hot reload no longer leaves the old SIP client registered.** Each
+  Metro reload kept the previous `SipClient` and its socket, so after two
+  edits three copies were registered and a call went to a stale one. In
+  debug builds the previous client is now silenced and stopped when its
+  replacement is created. Confirmed on the device: one unregister, one
+  register, status shown correctly.
+- **The CA certificate field holds a PEM.** It was single-line.
+
+- **A release build on the phone.** `assembleRelease` for `arm64-v8a`,
+  installed over the debug build with accounts and credentials intact; it
+  registers and takes calls with no Metro. Signed with the debug keystore.
+- **An inbound video call.** From the console softphone, on the release
+  build over TLS: audio and video m-lines both answered `sendrecv`,
+  auto-answered with the front camera, the browser's picture full screen
+  with the local one inset, picture and voice confirmed both ways. The
+  first video call the app has taken.
+- **The trace reads audio level from the audio stream.** On that call it
+  reported silence throughout, having taken the level from the video
+  stream's statistics.
+
+**Found on the AthenaSIP side, fixed there:** the node's re-offer after a
+488 repeated the same plain-RTP offer; behind the builtin engine it now
+passes the 488 back instead.
+
+**Left in `ACTIVE.md`:** a completed call over UDP; TLS refused without the
+CA; why one ringing call was not auto-answered.
+
+### 2026-09-30, AthenaSIP interop UAT
+
+First calls against anything other than the Asterisk fixture, on the
+Blackview A85 over SIP/TCP to an AthenaSIP node with rtpengine on the media
+path. Outcome: registration, inbound and outbound calls, two-way audio heard
+at both ends in both directions, BYE from each end. Recorded as passed.
+
+**Shipped from it:**
+
+- **A SIP trace that exists.** The "Verbose SIP logging" toggle had been wired
+  to nothing. `src/sip/SipTrace.ts` now wraps the JsSIP socket at
+  `createSocket`, so every transport is traced by construction: raw messages
+  both directions, byte-counted, digest `response=` redacted, chunked under
+  logcat's 4 kB truncation, with `dump()` and `dumpSdp()` for the artefact.
+  Plus `[media]` lines per call - ICE, DTLS and connection state changes and
+  a 2 s stats line with the selected candidate pair, RTP packets each way and
+  received and sent audio energy. It was the instrument the evening ran on.
+- **Android rings on inbound calls.** A SELF_MANAGED ConnectionService draws
+  the call UI and never rings; the app deferred to it and was silent. The
+  first UAT call timed out unanswered because of this. Fixed, together with
+  the `stopRingtone` that `handleEnded` was missing, which the fix would
+  otherwise have turned into a ringtone that outlives a missed call.
+- **Outbound INVITEs no longer wait ~40 s for ICE gathering.** JsSIP holds
+  the offer until gathering completes; with the Google STUN default and Wi-Fi
+  plus cellular up, that took long enough to read as "stuck on Calling".
+  `SipClient` now sends once candidates have been quiet for 500 ms.
+- **Call history cannot hold two rows with one key.** `recordCall` replaces
+  by id and `hydrate` de-duplicates what an older build persisted.
+- **No keep-alive warning on every TCP connect** - `react-native-tcp-socket`
+  ignores the delay parameter and said so each time.
+
+**Found and left in `ACTIVE.md`:** the `.invalid;transport=ws` Contact on
+non-WebSocket transports; the Google STUN default and what it discloses;
+audio focus refused on outbound calls; no `rport`.
+
+**The silent call, for the record.** Every early call rang, connected and
+carried the phone's audio one way; the caller's leg sat at four packets. It
+was blamed on Docker Desktop's NAT (a true observation - the engine sees the
+browser via a peer-reflexive candidate at Docker's gateway - that was not
+the cause, since the same NAT is present when a call works), then on the two
+legs being unalike. The cause was in AthenaSIP: `DTLS=passive` sent to
+rtpengine on the answer as well as the offer reset a handshake the engine had
+already begun as the active side toward the caller. Any call that rang for
+more than a few hundred milliseconds lost the caller's leg; auto-answering
+automation never rang long enough to see it. The lead was that the
+four-packet signature followed whichever leg had sent the offer, the phone's
+included. Four reproductions with no working case to compare against showed
+that something was broken, not what; one browser-to-browser control with a
+real ring time did. Environment traps met on the way are in `ACTIVE.md`.
+
+## 0.2.1, 2026-09-18
+
+Adopted the shared AthenaSIP palette from athenasip-admin, along with the rule
+that governs it: **the accent marks position, never approval.**
+
+Green had been serving as both the accent and the `ok` state, so every
+affirmative control - call button, Save, Add account, Reconnect, toggles,
+dialog confirms - shared a hue with every healthy status, and accumulated on
+every screen until it meant nothing. Eight controls moved onto blue-steel.
+Green now appears only where it carries information: registered, favourite,
+connected, and answering a call.
+
+The accent is blue-steel because AthenaSIP has no brand colour to inherit -
+its logo is monochrome - and because steel leaves green and red free to mean
+something. Ground, surfaces, text ramp, borders and semantics were taken
+unchanged, so the two products match.
+
+Call controls stay conventional, which the admin client recommended. Answer is
+exactly its `--ok`; hang up is a saturated red rather than its light text red,
+which is unreadable as a filled button. Red against green is the pair that
+fails for the commonest colour vision deficiency, so hue does not carry it
+alone: the two are far apart in luminance, answer carries dark content and
+hang up light, and position is fixed across every screen.
+
+Two contrast defects fixed, both found by measuring every pairing rather than
+trusting the numbers:
+
+- Interactive text at `#3d7fb5` gave 4.18:1 on `surface` and 3.70:1 on
+  `surface2`. Lifted to `#4d8ec3`. The admin client rightly pointed out its own
+  value was never failing - there the token is only a ring or border, so the
+  3:1 non-text bar applies. Here it is genuinely text, so 4.5:1 does.
+- The faintest text step at `#77777f` gave 3.57:1 on `surface2`, and it is not
+  decorative: it renders contact numbers, the account's user@host, the
+  unselected transport labels, the remote party's URI mid-call and the
+  inactive tab labels. Lifted to `#8a8a93`.
+
+## 0.2.0, 2026-09-17
+
+**The first release that has actually made a call.**
+
+Verified against Asterisk 20.6: registration with digest auth over UDP, TCP,
+TLS and WebSocket, and an audio call carrying two-way Opus over DTLS-SRTP -
+1604 packets sent, 1613 received in 32 seconds - with the call timer, the
+Android system call UI, hang-up and call history all behaving.
+
+**`test/asterisk`**: a disposable Asterisk fixture serving all four
+transports at once, with a dialplan of single-purpose extensions: echo, a 1004
+Hz Milliwatt reference tone, DTMF capture and readback, busy, congestion,
+ring-forever, delayed answer, decline, music on hold, a transfer target, and
+app-to-app dialling. AMI lets a test assert what the server received rather
+than what the app displayed.
+
+**`test/integration`**: a harness running the real `SipClient` against that
+fixture from Node. `src/sip/transports/sockets.ts` makes the sockets
+injectable: the app installs the React Native ones, the harness installs
+Node's `dgram`, `net` and `tls`. Everything above the socket is the code that
+ships. Seven tests cover registration on every transport plus its failure
+modes, in seconds.
+
+**Critical actions are guarded.** `singleFlight()` and the
+`useCriticalAction()` hook: one press does the action once, repeats during and
+for a cooldown after are ignored, and `busy` drives the control's disabled
+state. Dial, answer, decline, hang up, transfer, video upgrade, redial and
+calling a contact all route through it.
+
+### Bugs that only hardware found
+
+- **Outbound calls crashed the app.** CallKeep's `VoiceConnectionService`
+  calls `TelecomManager.getPhoneAccount()`, which throws `SecurityException`
+  without `READ_PHONE_NUMBERS` - inside a system service callback, where JS
+  cannot catch it, so the process died on the first dial. The permission was
+  declared but never requested at runtime.
+- **Which permission to ask for depends on the API level**, and not obviously:
+  react-native-callkeep's own manifest caps `READ_PHONE_STATE` at
+  `maxSdkVersion 29`, and the merger applies that cap to ours. On API 30+ it
+  is absent from the APK entirely, so requesting it could only ever fail and
+  would have disabled CallKeep on every modern device.
+- **One tap placed two calls.** Telecom echoes `RNCallKeep.startCall()` back
+  as `didReceiveStartCallAction` - the event meant for calls dialled from
+  outside the app - and acting on our own echo placed the call again. It also
+  bypassed every in-flight guard, because it re-enters the controller directly
+  and arrives about a second later.
+- **`SipClient.stop()` returned before the transport closed.** JsSIP
+  disconnects at once only when nothing is outstanding, and otherwise waits two
+  seconds; since `start()` calls `stop()` first, switching account or transport
+  briefly held two sockets.
+- **`endAllCalls()` does not clear orphaned telecom connections.** It iterates
+  a static map, empty in a fresh process. A connection left by a crash lives on
+  in the system telecom service; recovery is to unregister the phone account
+  and restart. Recorded in `CallKeepService`.
+
+### Fixture problems worth remembering
+
+Each presented as something other than what it was:
+
+- Asterisk was removed from Debian bookworm, so the image is Ubuntu 24.04.
+- `chan_sip` claims the `sip` WebSocket sub-protocol before
+  `res_pjsip_transport_websocket` can, making that module decline to load and
+  silently removing WebSocket support. It also competes for UDP 5060.
+- Asterisk expands `${VAR}` in the dialplan but **not** in `pjsip.conf`, so
+  the external address is rendered by the entrypoint with `envsubst`.
+- Template inheritance is `[name](template)`; written as `templates = name`
+  the objects never appear and nothing is logged.
+- The AOR must be named for the user part being registered -
+  `res_pjsip_registrar` looks it up by the To header, so any other name gives
+  404 with endpoint and auth both correct.
+- `rewrite_contact` is required for the non-WebSocket transports: JsSIP
+  registers an unroutable `sip:<random>@<random>.invalid` Contact, so Asterisk
+  could not deliver an inbound INVITE or even a BYE.
+- A CA certificate without `keyUsage=keyCertSign` is rejected by modern TLS
+  stacks with an error that reads like a server fault.
+
+## 0.1.0, 2026-09-16
 
 The initial build: a working SIP softphone that compiles, lints and tests
 clean, but has not yet completed a call against a live PBX.
@@ -23,8 +308,8 @@ clean, but has not yet completed a call against a live PBX.
 ### Transports
 
 SIP over **UDP, TCP, TLS and WebSocket**. JsSIP ships only a WebSocket socket
-but does not require one — its transport layer accepts anything implementing
-its `Socket` interface — so `src/sip/transports` supplies the rest and
+but does not require one (its transport layer accepts anything implementing
+its `Socket` interface), so `src/sip/transports` supplies the rest and
 `SipClient` picks one per account.
 
 - `UdpTransport`: a datagram is a message, so no framing. Warns above 1300
@@ -32,7 +317,7 @@ its `Socket` interface — so `src/sip/transports` supplies the rest and
 - `StreamTransport`: TCP and TLS share one implementation, because the framing
   problem is identical once the bytes are decrypted. Accumulates, finds the
   CRLFCRLF, reads Content-Length, and surfaces a message only when the body is
-  complete — counted in bytes, not characters. Handles RFC 5626 CRLF
+  complete, counted in bytes, not characters. Handles RFC 5626 CRLF
   keep-alives.
 - Ports default to the RFC-assigned 5060/5060/5061. WS and WSS require an
   explicit URI, because RFC 7118 registers no port and every implementation
@@ -76,7 +361,7 @@ its `Socket` interface — so `src/sip/transports` supplies the rest and
 - **No platform alerts anywhere.** `Dialog.alert`, `Dialog.confirm` and
   `Dialog.actions` queue through a store and are drawn by `DialogHost` at the
   root of the navigator, with `PromptModal` for text entry.
-- The owl mark, small in the top bar and as a faint watermark behind content —
+- The owl mark, small in the top bar and as a faint watermark behind content,
   dropped on the call screen once there is remote video to cover.
 - App icons: a VectorDrawable adaptive icon on Android API 26+, so nothing is
   rasterised there; PNGs only where the platform leaves no choice.

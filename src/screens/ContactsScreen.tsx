@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 
 import { PlusIcon } from '../components/Icons';
-import { PromptModal } from '../components/PromptModal';
+import { FormModal } from '../components/PromptModal';
 import { Row } from '../components/Row';
 import { Screen } from '../components/Screen';
 import { useCriticalAction } from '../hooks/useCriticalAction';
@@ -37,9 +37,11 @@ export function ContactsScreen() {
   const addContact = useContactsStore(state => state.addContact);
   const removeContact = useContactsStore(state => state.removeContact);
   const toggleFavorite = useContactsStore(state => state.toggleFavorite);
+  const updateContact = useContactsStore(state => state.updateContact);
 
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<Contact | undefined>(undefined);
 
   const sections = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -82,6 +84,7 @@ export function ContactsScreen() {
       void Dialog.actions({
         title: contact.displayName,
         actions: [
+          { label: 'Edit contact', onPress: () => setEditing(contact) },
           {
             label: contact.favorite ? 'Remove favourite' : 'Add favourite',
             onPress: () => void toggleFavorite(contact.id),
@@ -97,18 +100,26 @@ export function ContactsScreen() {
     [removeContact, toggleFavorite],
   );
 
-  /** Entered as "Name, 1001" so one prompt collects both fields. */
-  const handleAdd = useCallback(
-    (value: string) => {
-      setAdding(false);
-      const [name, number] = value.split(',').map(part => part.trim());
-      if (!name || !number) {
-        void Dialog.alert(
-          'Could not add contact',
-          'Enter a name and a number, separated by a comma.',
-        );
+  /** Name and the first number; any further numbers are left as they are. */
+  const handleEdit = useCallback(
+    ([name, number]: string[]) => {
+      const contact = editing;
+      setEditing(undefined);
+      if (!contact) {
         return;
       }
+      const [first, ...rest] = contact.numbers;
+      void updateContact(contact.id, {
+        displayName: name,
+        numbers: [{ label: first?.label ?? 'SIP', value: number }, ...rest],
+      });
+    },
+    [editing, updateContact],
+  );
+
+  const handleAdd = useCallback(
+    ([name, number]: string[]) => {
+      setAdding(false);
       void addContact({
         displayName: name,
         numbers: [{ label: 'SIP', value: number }],
@@ -174,11 +185,32 @@ export function ContactsScreen() {
         )}
       />
 
-      <PromptModal
+      <FormModal
+        visible={editing !== undefined}
+        title="Edit contact"
+        fields={[
+          {
+            label: 'Name',
+            initialValue: editing?.displayName,
+            autoCapitalize: 'words',
+          },
+          {
+            label: 'Number or SIP address',
+            initialValue: editing?.numbers[0]?.value,
+          },
+        ]}
+        confirmLabel="Save"
+        onConfirm={handleEdit}
+        onCancel={() => setEditing(undefined)}
+      />
+
+      <FormModal
         visible={adding}
         title="New contact"
-        message="Enter a name and a number, separated by a comma."
-        placeholder="Alice, 1001"
+        fields={[
+          { label: 'Name', placeholder: 'Alice', autoCapitalize: 'words' },
+          { label: 'Number or SIP address', placeholder: '1001' },
+        ]}
         confirmLabel="Add"
         onConfirm={handleAdd}
         onCancel={() => setAdding(false)}

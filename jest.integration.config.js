@@ -12,8 +12,8 @@
 
 module.exports = {
   preset: '@react-native/jest-preset',
-  // The React Native modules are still mocked -- the app's own code imports
-  // them -- but the SIP transports get Node sockets injected instead, so the
+  // The React Native modules are still mocked - the app's own code imports
+  // them - but the SIP transports get Node sockets injected instead, so the
   // SIP traffic is real.
   setupFiles: ['<rootDir>/jest.setup.js'],
   // Probes the fixture before collection, so tests can genuinely skip rather

@@ -48,6 +48,8 @@ interface FieldProps {
   placeholder?: string;
   hint?: string;
   secure?: boolean;
+  /** Keep line breaks, for a value that has them - a PEM does. */
+  multiline?: boolean;
   keyboardType?: 'default' | 'url' | 'number-pad';
   autoCapitalize?: 'none' | 'words';
 }
@@ -59,6 +61,7 @@ function Field({
   placeholder,
   hint,
   secure,
+  multiline,
   keyboardType = 'default',
   autoCapitalize = 'none',
 }: FieldProps) {
@@ -71,10 +74,11 @@ function Field({
         placeholder={placeholder}
         placeholderTextColor={colors.textFaint}
         secureTextEntry={secure}
+        multiline={multiline}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
         autoCorrect={false}
-        style={styles.input}
+        style={[styles.input, multiline && styles.inputMultiline]}
       />
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}
     </View>
@@ -134,8 +138,8 @@ export function AccountScreen({ accountId, onDone }: AccountScreenProps) {
   const isWebSocket = transport === 'ws' || transport === 'wss';
 
   /**
-   * Offer a starting WebSocket URI. The port is a guess -- RFC 7118 registers
-   * none -- so this uses Asterisk's, which is the most common deployment.
+   * Offer a starting WebSocket URI. The port is a guess - RFC 7118 registers
+   * none - so this uses Asterisk's, which is the most common deployment.
    */
   const suggestWsUri = useCallback(() => {
     if (!wsUri && domain) {
@@ -369,6 +373,7 @@ export function AccountScreen({ accountId, onDone }: AccountScreenProps) {
                 value={tlsCaPem}
                 onChangeText={setTlsCaPem}
                 placeholder="-----BEGIN CERTIFICATE-----"
+                multiline
                 hint="Only needed for a self-signed or private CA. Leave blank to use the system trust store."
               />
             ) : null}
@@ -469,6 +474,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     fontSize: 15,
     color: colors.text,
+  },
+  inputMultiline: {
+    maxHeight: TOUCH_TARGET * 4,
+    paddingVertical: space.md,
+    textAlignVertical: 'top',
   },
   suggest: {
     alignSelf: 'flex-start',

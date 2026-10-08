@@ -32,7 +32,9 @@ import {
 } from '../types';
 import { TypedEmitter } from '../utils/emitter';
 import { uuidv4 } from '../utils/id';
+import { canAnswerOffer } from '../utils/sdp';
 import { bareUri, toSipUri } from '../utils/sipUri';
+import { sipTrace } from './SipTrace';
 import { StreamTransport } from './transports/StreamTransport';
 import { UdpTransport } from './transports/UdpTransport';
 
@@ -71,7 +73,7 @@ export interface PlaceCallOptions {
  *
  * Responsibilities kept here: UA lifecycle, registration, and translating
  * JsSIP's session events into our `Call` model. Everything platform-specific
- * -- CallKit/ConnectionService, audio routing, ringtones -- lives in
+ * - CallKit/ConnectionService, audio routing, ringtones - lives in
  * `src/services` and reacts to the events this class emits.
  *
  * Transport is pluggable. JsSIP only ships a WebSocket socket, but its
@@ -525,6 +527,19 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
     }
 
     const { session, request } = event;
+
+    // Refuse an offer we cannot answer here, inside the event, where JsSIP
+    // has not yet sent 180. Left to answer() it fails the same way, but only
+    // after the caller has heard ringing, the system call screen has been
+    // put up and taken down, and a missed call has been written to history.
+    if (!canAnswerOffer(request.body)) {
+      session.terminate({
+        status_code: 488,
+        reason_phrase: 'Not Acceptable Here',
+      });
+      return;
+    }
+
     // An INVITE offering a video m-line means the caller wants video.
     const offeredVideo = /^m=video /m.test(request.body ?? '');
 
@@ -561,6 +576,20 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
       this.bindRemoteTrack(managed, session.connection);
     }
 
+    // JsSIP holds the INVITE (or the 200) until ICE gathering reports
+    // complete. With a STUN server configured and more than one interface
+    // that can take tens of seconds - observed at ~40 s on a phone with
+    // Wi-Fi and cellular both up, which is long enough for the user to give
+    // up and cancel. Every candidate JsSIP sees comes with a `ready()` that
+    // ends the wait early; call it once candidates have gone quiet.
+    let candidateQuiet: ReturnType<typeof setTimeout> | undefined;
+    session.on('icecandidate', ({ ready }) => {
+      if (candidateQuiet) {
+        clearTimeout(candidateQuiet);
+      }
+      candidateQuiet = setTimeout(ready, ICE_GATHERING_QUIET_MS);
+    });
+
     session.on('progress', () => {
       if (call.direction === 'outbound') {
         this.patch(managed, { state: 'ringing' });
@@ -595,11 +624,11 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
     });
 
     session.on('ended', event => {
-      this.finish(managed, 'ended', this.reasonFor(event));
+      this.finish(managed, 'ended', event);
     });
 
     session.on('failed', event => {
-      this.finish(managed, 'failed', this.reasonFor(event));
+      this.finish(managed, 'failed', event);
     });
   }
 
@@ -614,6 +643,8 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
         listener: (event: never) => void,
       ) => void;
     };
+
+    sipTrace.watchPeerConnection(peerconnection, managed.call.id);
 
     pc.addEventListener('track', (event: never) => {
       const { streams } = event as unknown as { streams: MediaStream[] };
@@ -664,7 +695,7 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
   private finish(
     managed: ManagedSession,
     state: Extract<CallState, 'ended' | 'failed'>,
-    reason: CallEndReason,
+    event: EndEvent,
   ): void {
     if (managed.call.state === 'ended' || managed.call.state === 'failed') {
       return;
@@ -678,7 +709,11 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
       endedAt: Date.now(),
       // A transfer sets endReason ahead of the BYE it causes; keep it.
       endReason:
-        managed.call.endReason === 'transferred' ? 'transferred' : reason,
+        managed.call.endReason === 'transferred'
+          ? 'transferred'
+          : this.reasonFor(event),
+      endedLocally: event.originator === 'local',
+      endStatus: finalResponse(event),
     };
     managed.call = ended;
     this.emit('call:ended', ended);
@@ -721,8 +756,47 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
   }
 }
 
+/**
+ * How long ICE candidates must have stopped arriving before the offer or
+ * answer is sent without waiting for the gathering-complete event.
+ */
+const ICE_GATHERING_QUIET_MS = 500;
+
+/**
+ * The final response that failed a call, when the far end sent one. A local
+ * cancel or a BYE carries a request rather than a response, so has none.
+ */
+function finalResponse(
+  event: EndEvent,
+): { code: number; phrase: string } | undefined {
+  const message = event.message as
+    | { status_code?: number; reason_phrase?: string }
+    | undefined;
+  const code = message?.status_code;
+  if (event.originator !== 'remote' || !code || code < 300) {
+    return undefined;
+  }
+  return { code, phrase: message?.reason_phrase ?? '' };
+}
+
 /** The app runs a single UA; this is it. */
 export const sipClient = new SipClient();
+
+// A Metro hot reload evaluates this module again and makes a second client,
+// while the first keeps its socket and its registration. The server then
+// holds a binding per reload and may deliver a call to code that no longer
+// exists on disk. Shut the previous one down as its replacement appears,
+// deaf first: its listeners write to stores the new client shares, and its
+// parting "unregistered" would otherwise land after the new registration.
+if (__DEV__) {
+  const slot = globalThis as { __athenaPhoneSipClient?: SipClient };
+  const previous = slot.__athenaPhoneSipClient;
+  if (previous) {
+    previous.removeAllListeners();
+    previous.stop().catch(() => undefined);
+  }
+  slot.__athenaPhoneSipClient = sipClient;
+}
 
 /**
  * Build the JsSIP socket for an account's transport.
@@ -731,6 +805,16 @@ export const sipClient = new SipClient();
  * it just has a `Socket`.
  */
 function createSocket(account: SipAccount): Socket {
+  // Wrapped here rather than inside each transport: this is the one place a
+  // socket is built, so every transport is traced by construction and a new
+  // one cannot be added that quietly is not.
+  return sipTrace.traceSocket(
+    buildSocket(account),
+    account.transport.toUpperCase(),
+  );
+}
+
+function buildSocket(account: SipAccount): Socket {
   const host = account.server?.trim() || account.domain;
   const port = account.port ?? defaultPortFor(account.transport);
 

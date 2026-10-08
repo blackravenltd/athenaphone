@@ -14,7 +14,7 @@
  * Source of truth is `assets/logo/athenaphone-mark.svg`, itself derived from
  * the original Inkscape export by dropping the editor metadata and tightening
  * the viewBox from the A4 page onto the artwork's own bounds. The path data
- * below is verbatim from that file -- regenerate this constant rather than
+ * below is verbatim from that file - regenerate this constant rather than
  * editing the path by hand.
  *
  * The fill is `currentColor`, so callers set it via SvgXml's `color` prop.

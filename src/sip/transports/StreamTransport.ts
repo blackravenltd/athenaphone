@@ -31,7 +31,7 @@ function decode(source: Buffer, start: number, end?: number): string {
  * Unlike UDP, a stream transport has no message boundaries: a single read can
  * carry half a message or three of them. RFC 3261 section 7.5 makes
  * Content-Length mandatory here for exactly that reason, and this class does
- * the framing -- accumulate bytes, find the CRLFCRLF that ends the headers,
+ * the framing - accumulate bytes, find the CRLFCRLF that ends the headers,
  * read Content-Length, and only surface a message once its whole body has
  * arrived.
  *
@@ -87,7 +87,9 @@ export class StreamTransport {
       this.socket?.setNoDelay?.(true);
       // SIP registrations are long-lived and mostly idle; without this a NAT
       // or a load balancer quietly drops the connection between REGISTERs.
-      this.socket?.setKeepAlive?.(true, 30_000);
+      // No initial delay: react-native-tcp-socket ignores the parameter and
+      // warns on every connect if one is passed, and the OS default is fine.
+      this.socket?.setKeepAlive?.(true);
       this.onconnect();
     };
 

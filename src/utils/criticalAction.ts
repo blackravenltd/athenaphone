@@ -15,8 +15,8 @@
  * did not mean to make.
  *
  * Guarding only against re-entry is not sufficient. Placing a call is
- * asynchronous, and the window closes as soon as the INVITE is on the wire --
- * roughly a second -- while the causes of a duplicate (a bounced touch, a
+ * asynchronous, and the window closes as soon as the INVITE is on the wire -
+ * roughly a second - while the causes of a duplicate (a bounced touch, a
  * repeated synthetic event, a user who taps again because nothing visibly
  * happened yet) land either side of that. So this holds the lock for a
  * cooldown after the action settles as well.

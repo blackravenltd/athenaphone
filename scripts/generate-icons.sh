@@ -8,7 +8,7 @@
 #   - iOS asset catalogues take PNG only. There is no vector option.
 #   - Android's legacy launcher icons (API 24-25, below our minSdk+2) are PNG.
 #     From API 26 the adaptive icon in mipmap-anydpi-v26 is used instead, and
-#     that is a pure VectorDrawable -- see res/drawable/ic_launcher_foreground.xml.
+#     that is a pure VectorDrawable - see res/drawable/ic_launcher_foreground.xml.
 #
 # Everything else in the app draws the mark as a vector at runtime.
 #

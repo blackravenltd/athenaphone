@@ -16,12 +16,12 @@ import { sockets, type DatagramSocket } from './sockets';
  * transport layer talks to anything exposing `url`, `via_transport`,
  * `sip_uri`, `connect`/`disconnect`/`send`, and the `onconnect`,
  * `ondisconnect` and `ondata` callbacks. That is the whole contract, and a
- * datagram socket satisfies it -- which is what lets AthenaPhone reach the
+ * datagram socket satisfies it - which is what lets AthenaPhone reach the
  * ordinary UDP SIP servers that nearly every trunk provider runs, rather than
  * only the WebSocket listeners that a minority expose.
  *
  * UDP is a natural fit for the interface: one datagram is exactly one SIP
- * message, so there is no framing to do. (TCP is not -- it needs
+ * message, so there is no framing to do. (TCP is not - it needs
  * Content-Length parsing to find message boundaries. See TcpTransport.)
  *
  * Caveats worth knowing:
