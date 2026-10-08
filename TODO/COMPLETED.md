@@ -4,7 +4,30 @@ Newest first. One entry per milestone, recording what actually shipped.
 
 ---
 
-## Unreleased, 2026-10-04, the public node and the background
+## 0.4.0, 2026-10-08
+
+Calls that explain themselves, contacts that can be edited, an app that
+stays online in the background, and a test suite that places real calls.
+
+**Shipped:**
+
+- **A call's outcome stays on screen until dismissed.** Busy, No answer,
+  Declined, Unavailable, Could not connect, Connection lost, or Call ended
+  with its length, and the server's response underneath; Close or Call
+  again. A failed call no longer just vanishes.
+- **Contacts:** name and number are separate fields, and a contact can be
+  edited from its long-press menu.
+- **Remain in background** and the compact video-call toolbar; see the
+  2026-10-04 entry below.
+- **`npm run test:athenasip`**, AthenaPhone's part of AthenaSIP's combined
+  suite: registration on every transport and calls between two copies of the
+  SIP stack through a live node, with werift as WebRTC. Passing in both its
+  direct and TURN-relayed phases.
+- **Documentation** rewritten around Android and getting the app onto a
+  phone.
+- Every dash in the repository is a plain hyphen.
+
+### 2026-10-04, the public node and the background
 
 Against `macnessa.athenasip.org`, a public AthenaSIP node behind NAT with
 rtpengine, reached from the phone over the internet. Video calls came from
