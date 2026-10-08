@@ -8,8 +8,16 @@ hosted service in the middle. Built with React Native,
 
 > **Status: working on Android, not yet released.** Registration, inbound and
 > outbound audio and video calls, hold, mute, DTMF, blind transfer, history
-> and contacts work on a real phone. The code also targets iOS, but it has
-> never been built there. Open work is in [`TODO/ACTIVE.md`](TODO/ACTIVE.md).
+> and contacts work on a real phone, against servers that offer WebRTC
+> media. Commodity SIP providers, which offer plain RTP, do not work yet; a
+> move to the [PJSIP](https://www.pjsip.org) engine to fix that is under way.
+> The code also targets iOS, but it has never been built there. Open work is
+> in [`TODO/ACTIVE.md`](TODO/ACTIVE.md).
+
+AthenaPhone has a sibling project, [AthenaSIP](https://github.com/blackravenltd/athenasip),
+an open source SIP server. They are developed and tested together, but
+AthenaPhone is not tied to it: it aims to work with any standards-compliant
+server or provider.
 
 ## Put it on a phone
 
