@@ -1,3 +1,5 @@
+![AthenaSIP Logo](docs/logos/athenasip_small_white.png)
+
 # AthenaPhone
 
 An open source, standards-compliant SIP softphone for Android. Audio and video
