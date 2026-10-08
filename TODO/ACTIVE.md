@@ -8,7 +8,7 @@ shipped.
 
 ## Where things stand
 
-Current release **0.4.0**. `develop` is the working branch; `main` tracks
+Current release **0.4.1**. `develop` is the working branch; `main` tracks
 releases.
 
 **Verified on hardware** (two Blackview A85s, Android 12), against three
@@ -288,6 +288,16 @@ Small, specific, and each independently fixable.
       screen over the lock screen and nothing else - set the flags only
       while a call is ringing or up, or move the call UI to its own activity.
 
+- [ ] **A call that ends before ICE connects leaves its peer connection
+      running.** Found by the AthenaSIP session driving 0.4.0 against
+      corvus-gbni-1 (2026-10-08): after such calls, three `[media]` watchers
+      kept logging `dtls=new` every 2 s until the app was force-stopped. The
+      connection, or at least the trace's stats timer, is not closed on that
+      path. Check `releaseStreams` and `sipTrace.watchPeerConnection` cleanup.
+- [ ] **The call screen is invisible to `uiautomator dump`**, even with
+      `--windows`, so automation finds End call only by position. Likely the
+      same cause would hide it from accessibility services; check with
+      TalkBack.
 - [ ] **The Bluetooth prompt interrupts the first call.** `requestForCall`
       asks for `BLUETOOTH_CONNECT` at dial time, so the first call a user
       places stops on a permission dialog. Ask at setup instead.

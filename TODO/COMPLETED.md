@@ -4,6 +4,13 @@ Newest first. One entry per milestone, recording what actually shipped.
 
 ---
 
+## 0.4.1, 2026-10-08
+
+No change to the app. Records two defects found by the AthenaSIP session
+driving 0.4.0 against corvus-gbni-1: a call ending before ICE connects
+leaves its media watcher running, and the call screen is invisible to
+uiautomator. Both are in `ACTIVE.md`.
+
 ## 0.4.0, 2026-10-08
 
 Calls that explain themselves, contacts that can be edited, an app that
