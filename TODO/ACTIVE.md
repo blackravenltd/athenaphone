@@ -88,7 +88,25 @@ Check each once the engine is in.
 
 ## 5. Features
 
-- Presence and busy-lamp field, SIP MESSAGE, message waiting (all on PJSIP).
+- **Presence, busy-lamp field, SIP MESSAGE, message waiting**, all on PJSIP,
+  after the engine swap. Agreed with the AthenaSIP session 2026-10-11 (its
+  develop 3bb6770, not yet deployed):
+  - Presence (RFC 3856): subscribe per contact with pjsua2 `Buddy`, no
+    resource lists (no RFC 4662 or XCAP on AthenaSIP). Publish our own
+    status with PUBLISH (RFC 3903, `application/pidf+xml`, RPID kept). With
+    nothing published, AthenaSIP shows open while registered.
+  - Busy-lamp field (RFC 4235): `Buddy.subscribeDlgEvent`. AthenaSIP builds
+    dialog state from its own call records, so the phone publishes nothing.
+    Each dialog carries what call pickup with Replaces (RFC 3891) needs.
+  - Message waiting (RFC 3842): AthenaSIP has no source and proxies
+    `message-summary` to devices; test against a provider or Asterisk.
+  - MESSAGE (RFC 3428): proxied, no store-and-forward; 480 when the other
+    side has no registration, which the UI must show as not delivered.
+  - Watchers must be in the same realm. Accept 200 or 202 to SUBSCRIBE
+    (AthenaSIP sends 200), honour 423 Min-Expires, and expect NOTIFYs at
+    most every 5 s.
+  - Test against AthenaSIP's presence scenarios once deployed (ask Tom), and
+    against at least one other server, so nothing is AthenaSIP-specific.
 - Push (RFC 8599), attended transfer UI, call waiting, conferencing, an
   audio-route picker, device contacts, provisioning by URL or QR code, call
   recording, do not disturb.
