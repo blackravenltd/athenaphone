@@ -3,14 +3,14 @@
 Open work, highest priority first. When something lands, move it to
 [`COMPLETED.md`](COMPLETED.md) under the release that shipped it.
 
-Current release **0.4.1**. Work happens on `develop`; `main` tracks releases.
+Current release **0.5.0**. Work happens on `develop`; `main` tracks releases.
 
 ## Where things stand
 
 Works on Android (Blackview A85, Android 12) against servers that offer
 WebRTC media: Asterisk with `webrtc = yes` and AthenaSIP. Registration over
 UDP, TCP, TLS and WS; inbound and outbound audio calls; inbound video;
-hold, mute, DTMF, blind transfer, history, contacts. Fails with commodity SIP
+hold, mute, DTMF (RFC 4733 and INFO), blind transfer, history, contacts. Fails with commodity SIP
 providers, which offer plain RTP, and that is the priority below; a PJSIP
 spike has shown the way (2026-10-11). Reached through AthenaSIP as a trunk,
 2talk calls already work (2026-10-12): an inbound carrier call rang, was
@@ -71,12 +71,13 @@ should be rechecked, not fixed, once PJSIP is in.
 
 - [ ] **The whole app works over the lock screen** (`showWhenLocked` on
       `MainActivity`). Only the call screen should.
-- [ ] **A call that ends before ICE connects leaves its media watcher
-      running** until the app is stopped. (current engine)
 - [ ] **The call screen is invisible to `uiautomator`**, and so probably to
       TalkBack.
-- [ ] **Audio focus is refused on outbound calls**: audio starts before
-      Telecom settles. Latent. (current engine)
+- [ ] **The mic is near-silent on outbound calls**: audio starts before
+      Telecom settles, and focus is lost 130 ms later. Start audio on
+      Telecom's audio-state callback. Seen on 2talk calls. (current engine)
+- [ ] **In-band DTMF** is offered in the account form but sends nothing
+      in-band yet; it waits for PJSIP.
 - [ ] **Every account defaults to Google's STUN server**, which discloses the
       phone's public addresses. Drop the default, or say so in the account
       form. Decide again for PJSIP, which needs STUN or NAT rewriting.
