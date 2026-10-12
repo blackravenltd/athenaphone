@@ -12,7 +12,10 @@ WebRTC media: Asterisk with `webrtc = yes` and AthenaSIP. Registration over
 UDP, TCP, TLS and WS; inbound and outbound audio calls; inbound video;
 hold, mute, DTMF, blind transfer, history, contacts. Fails with commodity SIP
 providers, which offer plain RTP, and that is the priority below; a PJSIP
-spike has shown the way (2026-10-11).
+spike has shown the way (2026-10-11). Reached through AthenaSIP as a trunk,
+2talk calls already work (2026-10-12): an inbound carrier call rang, was
+answered and carried audio both ways, with AthenaSIP's rtpengine converting
+between plain RTP and WebRTC after the phone's 488.
 
 Never run: iOS (never built), outbound video, a completed call over UDP, and
 staying registered unattended for hours (it did not, on 2026-10-04).
