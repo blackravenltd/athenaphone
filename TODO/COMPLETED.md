@@ -2,6 +2,21 @@
 
 What each release shipped, newest first.
 
+## 0.5.0, 2026-10-13
+
+- DTMF is sent for real: RFC 4733 when the answer negotiates
+  `telephone-event`, SIP INFO otherwise, through a patch that gives
+  react-native-webrtc a DTMF sender. A per-account setting forces RFC 4733,
+  INFO or (not yet working) in-band. Incoming INFO DTMF is reported.
+- A key tone plays on the phone for each digit pressed during a call.
+- A failed call no longer leaves its media stats poller running.
+- The PJSIP spike: plain-RTP calls to 2talk from PJSIP's sample app; write-up
+  in `docs/pjsip-spike.md`. Presence scope agreed with AthenaSIP.
+
+Verified: the first 2talk carrier calls through AthenaSIP, inbound with
+audio both ways, and RFC 4733 digits driving 2talk's voicemail; key tones
+heard on the A85. AthenaSIP 0.12.0 passed the suite 93 of 93.
+
 ## 0.4.1, 2026-10-08
 
 No app change. Recorded two defects found in live testing.

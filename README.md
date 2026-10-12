@@ -11,8 +11,9 @@ hosted service in the middle. Built with React Native,
 > **Status: working on Android, not yet released.** Registration, inbound and
 > outbound audio and video calls, hold, mute, DTMF, blind transfer, history
 > and contacts work on a real phone, against servers that offer WebRTC
-> media. Commodity SIP providers, which offer plain RTP, do not work yet; a
-> move to the [PJSIP](https://www.pjsip.org) engine to fix that is under way.
+> media. Commodity SIP providers, which offer plain RTP, work only through a
+> server that converts the media (2talk calls do, through AthenaSIP); a move
+> to the [PJSIP](https://www.pjsip.org) engine to fix that is under way.
 > The code also targets iOS, but it has never been built there. Open work is
 > in [`TODO/ACTIVE.md`](TODO/ACTIVE.md).
 
@@ -68,7 +69,7 @@ optimisation, and on Blackview and similar, lock it in the recent-apps view.
 | Authentication | Digest, MD5 (RFC 3261) |
 | Registration | RFC 5626 outbound parameters (`+sip.instance`, `reg-id`) |
 | Media | WebRTC: ICE, DTLS-SRTP, Opus, G.722, G.711 |
-| DTMF | RFC 4733 by default, SIP INFO per account |
+| DTMF | RFC 4733 when negotiated, else SIP INFO; either can be forced per account. In-band not yet |
 | Transfer | Blind, via REFER (RFC 3515) |
 
 Known gaps, all in [`TODO/ACTIVE.md`](TODO/ACTIVE.md): no DNS SRV/NAPTR

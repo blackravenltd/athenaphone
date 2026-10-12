@@ -47,8 +47,17 @@ export function defaultPortFor(transport: SipTransport): number | undefined {
 /** Media direction negotiated for a session. */
 export type MediaKind = 'audio' | 'video';
 
-/** DTMF signalling method. RFC 2833 is the interoperable default. */
-export type DtmfMode = 'rfc2833' | 'info';
+/**
+ * How keypad digits are sent during a call.
+ * - `auto`: RFC 4733 telephone-events when the answer negotiated them,
+ *   otherwise SIP INFO (application/dtmf-relay).
+ * - `rfc4733`: telephone-events in RTP (RFC 4733, formerly RFC 2833).
+ * - `info`: SIP INFO with an application/dtmf-relay body.
+ * - `inband`: audio tones in the media. Not possible on the current engine;
+ *   sent as `auto` until the PJSIP engine lands.
+ * `rfc2833` is how older builds stored `rfc4733`.
+ */
+export type DtmfMode = 'auto' | 'rfc4733' | 'info' | 'inband' | 'rfc2833';
 
 export interface IceServerConfig {
   urls: string | string[];

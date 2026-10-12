@@ -193,7 +193,7 @@ export function SettingsScreen({ onEditAccount }: SettingsScreenProps) {
           />
           <Toggle
             label="Dialpad feedback"
-            detail="Haptic feedback on each key press"
+            detail="A tone and a tap on each key press, including during calls"
             value={settings.dialpadTones}
             onChange={update('dialpadTones')}
           />

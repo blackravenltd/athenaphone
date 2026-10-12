@@ -26,7 +26,7 @@ import { CallController } from '../services/CallController';
 import { CredentialStore } from '../services/CredentialStore';
 import { accountDefaults, useAccountStore } from '../store/accountStore';
 import { Dialog } from '../store/dialogStore';
-import { defaultPortFor, type SipTransport } from '../types';
+import { defaultPortFor, type DtmfMode, type SipTransport } from '../types';
 import {
   colors,
   radius,
@@ -109,9 +109,7 @@ export function AccountScreen({ accountId, onDone }: AccountScreenProps) {
     existing?.transport ?? accountDefaults.transport,
   );
   const [server, setServer] = useState(existing?.server ?? '');
-  const [port, setPort] = useState(
-    existing?.port ? String(existing.port) : '',
-  );
+  const [port, setPort] = useState(existing?.port ? String(existing.port) : '');
   const [wsUri, setWsUri] = useState(existing?.wsUri ?? '');
   const [tlsCaPem, setTlsCaPem] = useState(existing?.tlsCaPem ?? '');
   const [displayName, setDisplayName] = useState(existing?.displayName ?? '');
@@ -133,7 +131,11 @@ export function AccountScreen({ accountId, onDone }: AccountScreenProps) {
   const [autoRegister, setAutoRegister] = useState(
     existing?.autoRegister ?? accountDefaults.autoRegister,
   );
-  const [useInfoDtmf, setUseInfoDtmf] = useState(existing?.dtmfMode === 'info');
+  const [dtmfMode, setDtmfMode] = useState<DtmfMode>(
+    existing?.dtmfMode === 'rfc2833'
+      ? 'rfc4733'
+      : existing?.dtmfMode ?? accountDefaults.dtmfMode,
+  );
 
   const isWebSocket = transport === 'ws' || transport === 'wss';
 
@@ -194,7 +196,7 @@ export function AccountScreen({ accountId, onDone }: AccountScreenProps) {
         Number(registerExpires) || accountDefaults.registerExpires,
       videoEnabled,
       autoRegister,
-      dtmfMode: useInfoDtmf ? ('info' as const) : ('rfc2833' as const),
+      dtmfMode,
     };
 
     if (existing) {
@@ -228,7 +230,7 @@ export function AccountScreen({ accountId, onDone }: AccountScreenProps) {
     registerExpires,
     videoEnabled,
     autoRegister,
-    useInfoDtmf,
+    dtmfMode,
     addAccount,
     updateAccount,
     onDone,
@@ -322,10 +324,10 @@ export function AccountScreen({ accountId, onDone }: AccountScreenProps) {
                 {transport === 'udp'
                   ? 'Works with almost every SIP server. Credentials are sent in the clear.'
                   : transport === 'tcp'
-                    ? 'Avoids the datagram size limit on large INVITEs. Still unencrypted.'
-                    : transport === 'tls'
-                      ? 'Encrypted signalling on port 5061. Preferred wherever the server supports it.'
-                      : 'SIP over WebSocket, as PBXs expose for WebRTC. Needs the full URI below.'}
+                  ? 'Avoids the datagram size limit on large INVITEs. Still unencrypted.'
+                  : transport === 'tls'
+                  ? 'Encrypted signalling on port 5061. Preferred wherever the server supports it.'
+                  : 'SIP over WebSocket, as PBXs expose for WebRTC. Needs the full URI below.'}
               </Text>
             </View>
 
@@ -362,7 +364,9 @@ export function AccountScreen({ accountId, onDone }: AccountScreenProps) {
                   onChangeText={setPort}
                   keyboardType="number-pad"
                   placeholder={String(defaultPortFor(transport) ?? '')}
-                  hint={`Defaults to ${defaultPortFor(transport)} for ${transport.toUpperCase()}.`}
+                  hint={`Defaults to ${defaultPortFor(
+                    transport,
+                  )} for ${transport.toUpperCase()}.`}
                 />
               </>
             )}
@@ -426,12 +430,32 @@ export function AccountScreen({ accountId, onDone }: AccountScreenProps) {
               value={videoEnabled}
               onChange={setVideoEnabled}
             />
-            <Toggle
-              label="SIP INFO for DTMF"
-              detail="Use SIP INFO instead of RFC 2833 in-band tones"
-              value={useInfoDtmf}
-              onChange={setUseInfoDtmf}
-            />
+          </View>
+
+          <SectionLabel>Keypad tones (DTMF)</SectionLabel>
+          <View style={styles.group}>
+            <View style={styles.field}>
+              <SegmentedControl
+                accessibilityLabel="DTMF method"
+                value={dtmfMode as 'auto' | 'rfc4733' | 'info' | 'inband'}
+                onChange={setDtmfMode}
+                options={[
+                  { value: 'auto', label: 'Auto' },
+                  { value: 'rfc4733', label: 'RFC 4733' },
+                  { value: 'info', label: 'INFO' },
+                  { value: 'inband', label: 'In-band' },
+                ]}
+              />
+              <Text style={styles.hint}>
+                {dtmfMode === 'info'
+                  ? 'Sends each digit as a SIP INFO message.'
+                  : dtmfMode === 'inband'
+                  ? 'Audio tones in the call. Not supported yet; sent as Auto.'
+                  : dtmfMode === 'rfc4733'
+                  ? 'Telephone-events in the audio stream. Falls back to SIP INFO if the call did not negotiate them.'
+                  : 'Telephone-events in the audio stream when the call negotiated them, otherwise SIP INFO.'}
+              </Text>
+            </View>
           </View>
 
           {existing ? (
