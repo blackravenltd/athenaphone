@@ -17,6 +17,7 @@ import { shouldHoldOutcome } from '../utils/callOutcome';
 import { AudioService } from './AudioService';
 import { CallKeepService } from './CallKeepService';
 import { CredentialStore } from './CredentialStore';
+import { DtmfTone } from './DtmfTone';
 import { PermissionsService } from './PermissionsService';
 import { RegistrationNotice } from './RegistrationNotice';
 
@@ -191,6 +192,9 @@ class CallControllerImpl {
   }
 
   sendDtmf(callId: string, digit: string): void {
+    if (useSettingsStore.getState().dialpadTones) {
+      DtmfTone.play(digit, true);
+    }
     sipClient.sendDtmf(callId, digit);
     useCallStore.getState().appendDtmf(digit);
   }
