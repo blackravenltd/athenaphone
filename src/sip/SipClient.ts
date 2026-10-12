@@ -17,7 +17,9 @@ import type {
 import type {
   EndEvent,
   IncomingDTMFEvent,
+  IncomingInfoEvent,
   OutgoingDTMFEvent,
+  OutgoingInfoEvent,
   RTCSession,
 } from 'jssip/lib/RTCSession';
 import { mediaDevices, MediaStream } from 'react-native-webrtc';
@@ -26,6 +28,7 @@ import {
   defaultPortFor,
   type Call,
   type CallEndReason,
+  type DtmfMode,
   type CallState,
   type RegistrationStatus,
   type SipAccount,
@@ -60,6 +63,8 @@ interface ManagedSession {
   call: Call;
   localStream?: MediaStream;
   remoteStream?: MediaStream;
+  /** Stops the trace's stats pollers for this leg's peer connections. */
+  stopWatching?: (() => void)[];
 }
 
 export interface PlaceCallOptions {
@@ -411,10 +416,13 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
 
   sendDtmf(callId: string, tones: string): void {
     const managed = this.require(callId);
+    const method = dtmfMethod(this.account?.dtmfMode, managed.session);
+    console.log(
+      `[dtmf] ${callId.slice(0, 8)} sending "${tones}" via ` +
+        (method === 'RFC2833' ? 'RFC 4733' : 'SIP INFO'),
+    );
     managed.session.sendDTMF(tones, {
-      transportType: (this.account?.dtmfMode === 'info'
-        ? 'INFO'
-        : 'RFC2833') as never,
+      transportType: method as never,
       duration: 160,
       interToneGap: 80,
     });
@@ -623,6 +631,24 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
       }
     });
 
+    // JsSIP decodes application/dtmf-relay itself and answers every other
+    // INFO with 200. application/dtmf carries the bare digit as its body.
+    session.on('newInfo', (event: IncomingInfoEvent | OutgoingInfoEvent) => {
+      const info = event.info as unknown as {
+        contentType?: string;
+        body?: string;
+      };
+      const tone = info.body?.trim();
+      if (
+        event.originator === 'remote' &&
+        /^application\/dtmf\b(?!-)/i.test(info.contentType ?? '') &&
+        tone &&
+        /^[0-9A-D#*]$/i.test(tone)
+      ) {
+        this.emit('dtmf:received', { callId: call.id, tone });
+      }
+    });
+
     session.on('ended', event => {
       this.finish(managed, 'ended', event);
     });
@@ -644,7 +670,9 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
       ) => void;
     };
 
-    sipTrace.watchPeerConnection(peerconnection, managed.call.id);
+    (managed.stopWatching ??= []).push(
+      sipTrace.watchPeerConnection(peerconnection, managed.call.id),
+    );
 
     pc.addEventListener('track', (event: never) => {
       const { streams } = event as unknown as { streams: MediaStream[] };
@@ -721,6 +749,9 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
 
   /** Stop camera and microphone capture so the hardware indicator clears. */
   private releaseStreams(managed: ManagedSession): void {
+    for (const stop of managed.stopWatching?.splice(0) ?? []) {
+      stop();
+    }
     for (const track of managed.localStream?.getTracks() ?? []) {
       track.stop();
     }
@@ -779,6 +810,38 @@ function finalResponse(
   return { code, phrase: message?.reason_phrase ?? '' };
 }
 
+/**
+ * How to send DTMF on this call, as JsSIP names the methods. RFC 4733 is used
+ * when the account allows it, the answer negotiated telephone-event, and the
+ * audio sender can insert events; otherwise SIP INFO, so a digit is never
+ * silently dropped. In-band tones cannot be generated on this engine and are
+ * treated as `auto`.
+ */
+export function dtmfMethod(
+  mode: DtmfMode | undefined,
+  session: RTCSession,
+): 'RFC2833' | 'INFO' {
+  if (mode === 'info') {
+    return 'INFO';
+  }
+  const connection = session.connection as unknown as
+    | {
+        remoteDescription?: { sdp?: string } | null;
+        getSenders?: () => {
+          track?: { kind?: string } | null;
+          dtmf?: { canInsertDTMF?: boolean } | null;
+        }[];
+      }
+    | undefined;
+  const negotiated = /^a=rtpmap:\d+ telephone-event\//im.test(
+    connection?.remoteDescription?.sdp ?? '',
+  );
+  const sender = connection
+    ?.getSenders?.()
+    .find(candidate => candidate.track?.kind === 'audio');
+  return negotiated && sender?.dtmf?.canInsertDTMF ? 'RFC2833' : 'INFO';
+}
+
 /** The app runs a single UA; this is it. */
 export const sipClient = new SipClient();
 
@@ -823,7 +886,11 @@ function buildSocket(account: SipAccount): Socket {
       return new UdpTransport(host, port ?? 5060) as unknown as Socket;
 
     case 'tcp':
-      return new StreamTransport(host, port ?? 5060, false) as unknown as Socket;
+      return new StreamTransport(
+        host,
+        port ?? 5060,
+        false,
+      ) as unknown as Socket;
 
     case 'tls':
       return new StreamTransport(

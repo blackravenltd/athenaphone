@@ -22,7 +22,7 @@ export const accountDefaults = {
   registerExpires: 600,
   autoRegister: true,
   enabled: true,
-  dtmfMode: 'rfc2833' as const,
+  dtmfMode: 'auto' as const,
   videoEnabled: true,
   keepAliveInterval: 30,
   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],

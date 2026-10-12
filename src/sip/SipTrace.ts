@@ -180,9 +180,9 @@ class SipTrace {
    * ICE never connecting, DTLS never finishing, or packets leaving and
    * nothing coming back.
    */
-  watchPeerConnection(peerconnection: unknown, callId: string): void {
+  watchPeerConnection(peerconnection: unknown, callId: string): () => void {
     if (!this.enabled) {
-      return;
+      return () => undefined;
     }
     const pc = peerconnection as WatchedPeerConnection;
     const tag = `[media] ${callId.slice(0, 8)}`;
@@ -197,11 +197,20 @@ class SipTrace {
       'signalingstatechange',
       'icegatheringstatechange',
     ]) {
-      pc.addEventListener(event, () => console.log(`${tag} ${event}  ${states()}`));
+      pc.addEventListener(event, () =>
+        console.log(`${tag} ${event}  ${states()}`),
+      );
     }
 
+    // Stopped by the caller when the call ends. react-native-webrtc does not
+    // always report a closed connection as closed, so the state check alone
+    // left the poller running for good after some failed calls.
     const timer = setInterval(() => {
-      if (pc.signalingState === 'closed' || !this.enabled) {
+      if (
+        pc.signalingState === 'closed' ||
+        pc.connectionState === 'closed' ||
+        !this.enabled
+      ) {
         clearInterval(timer);
         return;
       }
@@ -209,6 +218,7 @@ class SipTrace {
         .then(report => console.log(`${tag} ${summariseStats(report)}`))
         .catch(() => clearInterval(timer));
     }, 2000);
+    return () => clearInterval(timer);
   }
 
   private record(
@@ -431,8 +441,7 @@ function byteLength(message: string): number {
   let bytes = 0;
   for (const char of message) {
     const code = char.codePointAt(0) ?? 0;
-    bytes +=
-      code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4;
+    bytes += code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4;
   }
   return bytes;
 }
@@ -455,7 +464,10 @@ function logChunked(text: string): void {
   const total = Math.ceil(text.length / LOG_CHUNK);
   for (let i = 0; i < total; i++) {
     console.log(
-      `[sip] (part ${i + 1}/${total})\n${text.slice(i * LOG_CHUNK, (i + 1) * LOG_CHUNK)}`,
+      `[sip] (part ${i + 1}/${total})\n${text.slice(
+        i * LOG_CHUNK,
+        (i + 1) * LOG_CHUNK,
+      )}`,
     );
   }
 }
