@@ -66,7 +66,16 @@ interface ManagedSession {
   remoteStream?: MediaStream;
   /** Stops the trace's stats pollers for this leg's peer connections. */
   stopWatching?: (() => void)[];
+  /** The hold state last asked for, applied once the dialog can re-offer. */
+  wantHeld?: boolean;
+  /** Pending retry of a hold or resume JsSIP was not ready to send. */
+  holdTimer?: ReturnType<typeof setTimeout>;
+  holdAttempts?: number;
 }
+
+/** How often, and how many times, a refused hold or resume is retried. */
+const HOLD_RETRY_MS = 100;
+const HOLD_RETRY_LIMIT = 100;
 
 export interface PlaceCallOptions {
   video?: boolean;
@@ -397,12 +406,39 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
     }
   }
 
+  /**
+   * Put the far end on hold, or take it off.
+   *
+   * JsSIP refuses a re-INVITE while another INVITE transaction is pending,
+   * and says so only by returning false: a resume pressed while the hold is
+   * still being answered was silently dropped, leaving the call on hold.
+   * The wanted state is kept instead and applied once the dialog is ready,
+   * so the last press always wins.
+   */
   setHold(callId: string, held: boolean): void {
     const managed = this.require(callId);
-    if (held) {
-      managed.session.hold();
-    } else {
-      managed.session.unhold();
+    managed.wantHeld = held;
+    managed.holdAttempts = 0;
+    this.syncHold(managed);
+  }
+
+  private syncHold(managed: ManagedSession): void {
+    clearTimeout(managed.holdTimer);
+    managed.holdTimer = undefined;
+
+    const { session } = managed;
+    const want = managed.wantHeld;
+    if (want === undefined || session.isEnded()) {
+      return;
+    }
+    if (session.isOnHold().local === want) {
+      return;
+    }
+    const again = () => this.syncHold(managed);
+    const sent = want ? session.hold({}, again) : session.unhold({}, again);
+    if (!sent && (managed.holdAttempts ?? 0) < HOLD_RETRY_LIMIT) {
+      managed.holdAttempts = (managed.holdAttempts ?? 0) + 1;
+      managed.holdTimer = setTimeout(again, HOLD_RETRY_MS);
     }
   }
 
@@ -814,6 +850,8 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
 
   /** Stop camera and microphone capture so the hardware indicator clears. */
   private releaseStreams(managed: ManagedSession): void {
+    clearTimeout(managed.holdTimer);
+    managed.holdTimer = undefined;
     for (const stop of managed.stopWatching?.splice(0) ?? []) {
       stop();
     }
