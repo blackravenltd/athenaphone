@@ -112,3 +112,4 @@ junit.xml
 # these are private keys and must never be committed, however throwaway.
 test/asterisk/tls/
 test/asterisk/.env
+CLAUDE.local.md
