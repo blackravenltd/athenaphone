@@ -102,8 +102,11 @@ message within 30 s of connecting, idle unregistered connections closed,
       2026-10-27): 101 of 103 at first. A resume pressed while the hold
       was still being answered was dropped by JsSIP; fixed, the wanted hold
       state is kept and applied when the dialog is ready.
-- [ ] **INFO DTMF gets 500 from AthenaSIP's develop**, which passed on
-      0.12.0. Reported to its session with the request; waiting on it.
+- [x] **INFO DTMF got 500 from AthenaSIP's develop**, which passed on
+      0.12.0: rtpengine could not inject before RTP flowed. AthenaSIP now
+      forwards an INFO it cannot play end to end (f001aab). The suite
+      against f001aab (2026-10-27): 121 passed, none failed; the restart
+      test skips without `ATHENA_SUITE_RESTART_CMD`, and one is a todo.
 
 ## 3. Stay registered
 
