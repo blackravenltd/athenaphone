@@ -80,8 +80,13 @@ message within 30 s of connecting, idle unregistered connections closed,
       from Node (`test/athenasip/config.test.ts`); not yet on the A85.
 - [ ] **The configuration URL needs HTTPS the phone trusts.** A release
       build forbids plain HTTP, and `fetch` trusts only the system store,
-      so a node with AthenaSIP's snakeoil certificate cannot be asked. A
-      network security config trusting user-installed CAs would do; decide.
+      so a node with AthenaSIP's snakeoil certificate cannot be asked.
+      That is right for release: a real node has a publicly trusted
+      certificate (AthenaSIP's `docs/certificates.md`, Let's Encrypt), and
+      AthenaSIP plans nothing server-side (2026-10-27). For the fixture:
+      a debug-only network security config (`<debug-overrides>` trusting
+      user CAs, or snakeca.crt bundled into debug builds). It only helps a
+      debug build on the phone; decide.
 - [ ] **The rest of the configuration**: where to signal (`websocket_uris`,
       `transports`, `nodes`), the realm's registration lifetime and
       minimum, conference prefixes and push services.
