@@ -122,6 +122,7 @@ export function AccountScreen({ accountId, onDone }: AccountScreenProps) {
   const [voicemailNumber, setVoicemailNumber] = useState(
     existing?.voicemailNumber ?? '',
   );
+  const [configUrl, setConfigUrl] = useState(existing?.configUrl ?? '');
   const [registerExpires, setRegisterExpires] = useState(
     String(existing?.registerExpires ?? accountDefaults.registerExpires),
   );
@@ -177,6 +178,14 @@ export function AccountScreen({ accountId, onDone }: AccountScreenProps) {
       return;
     }
 
+    if (configUrl.trim() && !/^https?:\/\//.test(configUrl.trim())) {
+      void Dialog.alert(
+        'Invalid configuration URL',
+        'The server configuration URL must start with https:// or http://.',
+      );
+      return;
+    }
+
     const draft = {
       ...accountDefaults,
       name: name.trim() || domain.trim(),
@@ -191,6 +200,7 @@ export function AccountScreen({ accountId, onDone }: AccountScreenProps) {
       displayName: displayName.trim() || undefined,
       authorizationUser: authorizationUser.trim() || undefined,
       outboundProxy: outboundProxy.trim() || undefined,
+      configUrl: configUrl.trim() || undefined,
       voicemailNumber: voicemailNumber.trim() || undefined,
       registerExpires:
         Number(registerExpires) || accountDefaults.registerExpires,
@@ -226,6 +236,7 @@ export function AccountScreen({ accountId, onDone }: AccountScreenProps) {
     displayName,
     authorizationUser,
     outboundProxy,
+    configUrl,
     voicemailNumber,
     registerExpires,
     videoEnabled,
@@ -387,6 +398,15 @@ export function AccountScreen({ accountId, onDone }: AccountScreenProps) {
               value={outboundProxy}
               onChangeText={setOutboundProxy}
               placeholder="Optional"
+            />
+            <Field
+              label="Server configuration URL"
+              value={configUrl}
+              onChangeText={setConfigUrl}
+              placeholder="Optional, e.g. https://sip.example.com:8443"
+              autoCapitalize="none"
+              keyboardType="url"
+              hint="Where an AthenaSIP server tells the phone its ICE and TURN servers"
             />
             <Field
               label="Register expiry"

@@ -102,6 +102,13 @@ export interface SipAccount {
   tlsCaPem?: string;
   /** Route all requests via this proxy instead of the domain. */
   outboundProxy?: string;
+  /**
+   * The server's HTTP API, e.g. "https://sip.example.com:8443", for a
+   * server that tells its clients what to use (AthenaSIP's
+   * `/api/v1/subscriber/{realm}/config`). When set, each call asks it for
+   * ICE servers, so TURN credentials are fresh.
+   */
+  configUrl?: string;
   /** REGISTER refresh interval, seconds. */
   registerExpires: number;
   /** Register on app start and keep the registration refreshed. */

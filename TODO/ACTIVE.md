@@ -71,14 +71,20 @@ message within 30 s of connecting, idle unregistered connections closed,
       on every reconnect, and ten wrong answers ban the phone's address for
       15 minutes. A 401 or 407 after credentials now halts registration
       until the account is edited; a 403 waits out its Retry-After.
-- [ ] **The subscriber's configuration**:
-      `GET /api/v1/subscriber/{realm}/config`, HTTP Digest with
-      `qop=auth` and a rising `nc` (MD5 is accepted). Where to signal
-      (`websocket_uris`, `transports`, `nodes`), ICE servers with a TURN
-      credential minted per request, the realm's registration lifetime and
-      minimum, how many RFC 5626 flows to keep, conference prefixes and push
-      services. Ask at registration and again before each call, since TURN
-      credentials expire; never block on it.
+- [x] **ICE servers from the subscriber's configuration** (2026-10-27).
+      An account's optional server configuration URL; before each call the
+      phone fetches `GET /api/v1/subscriber/{realm}/config` with MD5 HTTP
+      Digest (`qop=auth`; React Native has no SHA-256) and uses its ICE
+      servers, with live TURN credentials, falling back to the account's own
+      list after 4 s or any failure. Proven against the develop fixture
+      from Node (`test/athenasip/config.test.ts`); not yet on the A85.
+- [ ] **The configuration URL needs HTTPS the phone trusts.** A release
+      build forbids plain HTTP, and `fetch` trusts only the system store,
+      so a node with AthenaSIP's snakeoil certificate cannot be asked. A
+      network security config trusting user-installed CAs would do; decide.
+- [ ] **The rest of the configuration**: where to signal (`websocket_uris`,
+      `transports`, `nodes`), the realm's registration lifetime and
+      minimum, conference prefixes and push services.
 - [ ] **Failover**: register through the next node when one stops, and two
       flows with reg-id 1 and 2 on a cluster. JsSIP always sends reg-id=1
       (the console shims the second), so probably with PJSIP.
@@ -87,8 +93,12 @@ message within 30 s of connecting, idle unregistered connections closed,
       Only under its Lua policy; the builtin one routes no rooms.
 - [ ] **MESSAGE** (RFC 3428) sent and received; 480 shown as not delivered.
 - [ ] **Presence, BLF and PUBLISH**: under Features, after the engine swap.
-- [ ] Run `npm run test:athenasip` against its `develop` fixture and
-      record the result.
+- [x] `npm run test:athenasip` against its develop fixture (84d8c1f,
+      2026-10-27): 101 of 103 at first. A resume pressed while the hold
+      was still being answered was dropped by JsSIP; fixed, the wanted hold
+      state is kept and applied when the dialog is ready.
+- [ ] **INFO DTMF gets 500 from AthenaSIP's develop**, which passed on
+      0.12.0. Reported to its session with the request; waiting on it.
 
 ## 3. Stay registered
 

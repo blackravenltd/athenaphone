@@ -56,6 +56,12 @@ app closes about three seconds after launch with no error on screen.
 from a private CA, paste the CA's PEM into **CA certificate**. Then tap the
 account to make it active.
 
+**Server configuration URL** (optional) is for a server that tells its
+clients what to use, such as AthenaSIP's API (`https://<node>:8443`). The
+phone asks it for ICE and TURN servers before each call, signed with the
+account's own password, and uses the account's list when it cannot. It must
+be HTTPS with a certificate the phone trusts.
+
 **Remain in background** (on by default) keeps the app running while an
 account is online, with a notification, so calls arrive when it is not on
 screen. Some phones still kill it: exempt AthenaPhone from battery

@@ -37,6 +37,11 @@ export const PORTS = {
     : undefined,
 };
 
+/** The node's plain HTTP API, which serves the subscriber's configuration. */
+export const API_URL = `http://${NODE_HOST}:${Number(
+  env.ATHENA_INTEROP_API_PORT || 8080,
+)}`;
+
 /** Subscribers the fixture provisioned, in order; 1001..1004 by default. */
 export const SUBSCRIBERS = (
   env.ATHENA_INTEROP_SUBSCRIBERS || '1001,1002,1003,1004'

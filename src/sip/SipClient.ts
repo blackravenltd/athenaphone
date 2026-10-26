@@ -29,6 +29,7 @@ import {
   type Call,
   type CallEndReason,
   type DtmfMode,
+  type IceServerConfig,
   type CallState,
   type RegistrationStatus,
   type SipAccount,
@@ -37,6 +38,7 @@ import { TypedEmitter } from '../utils/emitter';
 import { uuidv4 } from '../utils/id';
 import { canAnswerOffer } from '../utils/sdp';
 import { bareUri, toSipUri } from '../utils/sipUri';
+import { fetchClientConfig, usableIceServers } from './ClientConfig';
 import { registrationHalt } from './registrationHalt';
 import { sipTrace } from './SipTrace';
 import { StreamTransport } from './transports/StreamTransport';
@@ -313,7 +315,10 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
 
     const wantsVideo = options.video ?? false;
     const uri = toSipUri(target, account.domain);
-    const localStream = await this.captureLocalMedia(wantsVideo);
+    const [localStream, iceServers] = await Promise.all([
+      this.captureLocalMedia(wantsVideo),
+      this.iceServersFor(account),
+    ]);
 
     const call: Call = {
       id: uuidv4(),
@@ -331,7 +336,7 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
 
     const session = ua.call(uri, {
       mediaStream: localStream as unknown as MediaStream,
-      pcConfig: { iceServers: account.iceServers },
+      pcConfig: { iceServers },
       rtcOfferConstraints: {
         offerToReceiveAudio: true,
         offerToReceiveVideo: wantsVideo,
@@ -357,7 +362,11 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
   async answerCall(callId: string, withVideo?: boolean): Promise<void> {
     const managed = this.require(callId);
     const wantsVideo = withVideo ?? managed.call.hasVideo;
-    const localStream = await this.captureLocalMedia(wantsVideo);
+    const account = this.account;
+    const [localStream, iceServers] = await Promise.all([
+      this.captureLocalMedia(wantsVideo),
+      account ? this.iceServersFor(account) : Promise.resolve([]),
+    ]);
 
     managed.localStream = localStream;
     this.patch(managed, {
@@ -369,7 +378,7 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
 
     managed.session.answer({
       mediaStream: localStream as unknown as MediaStream,
-      pcConfig: { iceServers: this.account?.iceServers ?? [] },
+      pcConfig: { iceServers },
       rtcAnswerConstraints: {
         offerToReceiveAudio: true,
         offerToReceiveVideo: wantsVideo,
@@ -553,6 +562,33 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
   }
 
   // ----------------------------------------------------------------- internals
+
+  /**
+   * The ICE servers for a new call. With a configuration URL the server is
+   * asked each time, because the TURN credentials it mints expire; if it
+   * cannot be reached the account's own list is used, so a call is never
+   * lost to it.
+   */
+  private async iceServersFor(account: SipAccount): Promise<IceServerConfig[]> {
+    if (!account.configUrl || this.password === undefined) {
+      return account.iceServers;
+    }
+    try {
+      const config = await fetchClientConfig({
+        baseUrl: account.configUrl,
+        realm: account.domain,
+        username: account.authorizationUser || account.username,
+        password: this.password,
+      });
+      return usableIceServers(config.ice_servers);
+    } catch (error) {
+      console.warn(
+        '[sip] client configuration unavailable; using the account ICE servers:',
+        error instanceof Error ? error.message : error,
+      );
+      return account.iceServers;
+    }
+  }
 
   private attachUaHandlers(ua: UA): void {
     ua.on('connecting', ({ attempts }) => {
