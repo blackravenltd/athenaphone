@@ -55,7 +55,42 @@ failover; no switch to TCP for large messages; OPTIONS answered with no
 capabilities; one registration at a time; codec ordering; digest edge cases.
 Check each once the engine is in.
 
-## 2. Stay registered
+## 2. Keep up with AthenaSIP
+
+What AthenaSIP's `develop` asks of a client, from its session on 2026-10-26.
+No released node has it; only `test/interop/up.sh --rtpengine` in that
+repository runs it. The current engine already copes with its Digest: two
+challenges, SHA-256 then MD5, of which JsSIP keeps only the last and
+answers MD5 (so MD5 must stay last there); one answer per nonce, a
+`stale=true` re-challenge answered once, 423 Min-Expires retried, one
+Call-ID with a rising CSeq across refreshes. Its connection limits (a
+message within 30 s of connecting, idle unregistered connections closed,
+64 KB messages) are met too.
+
+- [x] **Stop guessing** (2026-10-26). A wrong stored password was re-sent
+      on every reconnect, and ten wrong answers ban the phone's address for
+      15 minutes. A 401 or 407 after credentials now halts registration
+      until the account is edited; a 403 waits out its Retry-After.
+- [ ] **The subscriber's configuration**:
+      `GET /api/v1/subscriber/{realm}/config`, HTTP Digest with
+      `qop=auth` and a rising `nc` (MD5 is accepted). Where to signal
+      (`websocket_uris`, `transports`, `nodes`), ICE servers with a TURN
+      credential minted per request, the realm's registration lifetime and
+      minimum, how many RFC 5626 flows to keep, conference prefixes and push
+      services. Ask at registration and again before each call, since TURN
+      credentials expire; never block on it.
+- [ ] **Failover**: register through the next node when one stops, and two
+      flows with reg-id 1 and 2 on a cluster. JsSIP always sends reg-id=1
+      (the console shims the second), so probably with PJSIP.
+- [ ] **Conferences (RFC 4579)**: a room is `sip:<prefix><name>@realm`,
+      dialled as an ordinary call; a join screen from the config's prefixes.
+      Only under its Lua policy; the builtin one routes no rooms.
+- [ ] **MESSAGE** (RFC 3428) sent and received; 480 shown as not delivered.
+- [ ] **Presence, BLF and PUBLISH**: under Features, after the engine swap.
+- [ ] Run `npm run test:athenasip` against its `develop` fixture and
+      record the result.
+
+## 3. Stay registered
 
 - [ ] **Vendor app killers.** Blackview's `BvApplockService` killed the app
       through its foreground service; the restarted process never
@@ -64,7 +99,7 @@ Check each once the engine is in.
       restart did not register.
 - [ ] **Network changes**: re-register on Wi-Fi to cellular.
 
-## 3. Defects
+## 4. Defects
 
 Those marked (current engine) belong to JsSIP or react-native-webrtc and
 should be rechecked, not fixed, once PJSIP is in.
@@ -90,7 +125,7 @@ should be rechecked, not fixed, once PJSIP is in.
 - [ ] Only a contact's first number is dialable.
 - [ ] Bluetooth is offered as an audio route even when nothing is paired.
 
-## 4. Unverified
+## 5. Unverified
 
 - [ ] The video-call toolbar has never been seen in a call.
 - [ ] A call completed over UDP.
@@ -98,7 +133,7 @@ should be rechecked, not fixed, once PJSIP is in.
 - [ ] One ringing call was not auto-answered on 2026-10-03; probably a stale
       hot-reloaded copy, since fixed.
 
-## 5. Features
+## 6. Features
 
 - **Presence, busy-lamp field, SIP MESSAGE, message waiting**, all on PJSIP,
   after the engine swap. Agreed with the AthenaSIP session 2026-10-11 (its
@@ -124,7 +159,7 @@ should be rechecked, not fixed, once PJSIP is in.
   recording, do not disturb.
 - An in-app log viewer with a share sheet, and surfacing `SipClient` errors.
 
-## 6. Release and platform
+## 7. Release and platform
 
 - [ ] A distributable release: a real signing key kept out of the repo, and
       the Android version wired to `package.json` (it reports 1.0).
