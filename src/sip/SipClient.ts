@@ -37,6 +37,7 @@ import { TypedEmitter } from '../utils/emitter';
 import { uuidv4 } from '../utils/id';
 import { canAnswerOffer } from '../utils/sdp';
 import { bareUri, toSipUri } from '../utils/sipUri';
+import { registrationHalt } from './registrationHalt';
 import { sipTrace } from './SipTrace';
 import { StreamTransport } from './transports/StreamTransport';
 import { UdpTransport } from './transports/UdpTransport';
@@ -93,6 +94,8 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
   private registration: RegistrationStatus = { state: 'unregistered' };
   /** Set while `stop()` is unwinding, so teardown is not treated as a fault. */
   private shuttingDown = false;
+  /** Pending REGISTER after a failure the server asked us to wait out. */
+  private retryTimer?: ReturnType<typeof setTimeout>;
 
   get currentAccount(): SipAccount | undefined {
     return this.account;
@@ -163,6 +166,22 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
    * transport would briefly hold two.
    */
   async stop(): Promise<void> {
+    this.clearRetry();
+    if (this.ua) {
+      await this.teardown();
+    }
+    // Also clears a failure left on show by halt(), which has no UA.
+    if (this.registration.state !== 'unregistered') {
+      this.setRegistration({ state: 'unregistered' });
+    }
+  }
+
+  /**
+   * Close the UA and its transport, leaving the registration status as it
+   * is. `stop()` then marks the account offline; `halt()` keeps the failure
+   * on show instead.
+   */
+  private async teardown(): Promise<void> {
     const ua = this.ua;
     if (!ua) {
       return;
@@ -211,7 +230,43 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
     if (this.ua === ua) {
       this.ua = undefined;
     }
-    this.setRegistration({ state: 'unregistered' });
+  }
+
+  /**
+   * Stop after a REGISTER failure that more attempts would only repeat.
+   *
+   * JsSIP registers again on every reconnect, and a registrar closes a
+   * connection that registered nobody, so a wrong stored password would
+   * otherwise be re-sent every few minutes until the server bans the
+   * address. The UA is closed with the failure left on show; registration
+   * resumes at `retryAt` when the server gave one, or when the account is
+   * next edited or activated, which rebuilds the UA.
+   *
+   * A call in progress is not cut off: the UA stays until the call ends,
+   * and nothing re-registers meanwhile because JsSIP only does so on a
+   * reconnect.
+   */
+  private async halt(ua: UA, retryAt?: number): Promise<void> {
+    if (this.ua !== ua) {
+      return;
+    }
+    const { account, password } = this;
+    if (this.sessions.size === 0) {
+      await this.teardown();
+    }
+    if (retryAt !== undefined && account && password !== undefined) {
+      this.retryTimer = setTimeout(() => {
+        this.retryTimer = undefined;
+        void this.start(account, password);
+      }, Math.max(0, retryAt - Date.now()));
+    }
+  }
+
+  private clearRetry(): void {
+    if (this.retryTimer !== undefined) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = undefined;
+    }
   }
 
   register(): void {
@@ -500,11 +555,21 @@ export class SipClient extends TypedEmitter<SipClientEvents> {
     });
 
     ua.on('registrationFailed', ({ cause, response }) => {
+      const halt = registrationHalt(
+        response?.status_code,
+        response?.getHeader('retry-after'),
+      );
       this.setRegistration({
         state: 'failed',
-        reason: cause ?? 'Registration failed',
+        reason: halt?.reason ?? cause ?? 'Registration failed',
         statusCode: response?.status_code,
+        retryAt: halt?.retryAt,
       });
+      if (halt) {
+        // Deferred so the UA is not closed from inside its own response
+        // handling.
+        setTimeout(() => void this.halt(ua, halt.retryAt), 0);
+      }
     });
 
     ua.on('newRTCSession', (event: RTCSessionEvent) => {

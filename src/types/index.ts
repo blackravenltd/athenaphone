@@ -134,6 +134,12 @@ export interface RegistrationStatus {
   registeredAt?: number;
   /** SIP response code from the last REGISTER attempt. */
   statusCode?: number;
+  /**
+   * Epoch ms of the next REGISTER the client will send by itself after a
+   * failure it must wait out (a 403 with Retry-After). Absent when it will
+   * not try again until the account is edited, or when nothing failed.
+   */
+  retryAt?: number;
 }
 
 export type CallDirection = 'inbound' | 'outbound';
